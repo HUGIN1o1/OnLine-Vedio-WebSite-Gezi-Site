@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gezicoding.geligeli.mapper.VideoMapper">
+
+    <resultMap id="BaseResultMap" type="com.gezicoding.geligeli.model.entity.Video">
+        <id column="video_id" property="videoId" jdbcType="BIGINT"/>
+        <result column="file_url" property="fileUrl" jdbcType="VARCHAR"/>
+        <result column="cover_url" property="coverUrl" jdbcType="VARCHAR"/>
+        <result column="user_id" property="userId" jdbcType="BIGINT"/>
+        <result column="title" property="title" jdbcType="VARCHAR"/>
+        <result column="type" property="type" jdbcType="INTEGER"/>
+        <result column="duration" property="duration" jdbcType="DOUBLE"/>
+        <result column="category_id" property="categoryId" jdbcType="INTEGER"/>
+        <result column="tags" property="tags" jdbcType="VARCHAR"/>
+        <result column="description" property="description" jdbcType="LONGVARCHAR"/>
+        <result column="status" property="status" jdbcType="INTEGER"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+        <result column="is_delete" property="isDelete" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        video_id, file_url, cover_url, user_id, title, type, duration, category_id, tags, description, status, create_time,
+        update_time, is_delete
+    </sql>
+
+</mapper>
