@@ -74,3 +74,21 @@ CREATE TABLE `video_stats`
     '2025-08-02 15:30:45',  -- 更新时间（初始与创建时间一致）
     0  -- 未删除状态（0表示未删除，1表示已删除）
 );
+
+
+DROP TABLE IF EXISTS `bullet`;
+CREATE TABLE `bullet`
+(
+    `bullet_id`     BIGINT       NOT NULL COMMENT '弹幕ID',
+    `video_id`      BIGINT       NOT NULL COMMENT '视频ID',
+    `user_id`       BIGINT       NOT NULL COMMENT '用户ID',
+    `content`       VARCHAR(128) NOT NULL COMMENT '弹幕内容',
+    `color`         VARCHAR(7)   NOT NULL DEFAULT '#FFFFFF' COMMENT '弹幕颜色 6位十六进制标准格式',
+    `playback_time` DOUBLE       NOT NULL COMMENT '弹幕所在视频的时间点',
+    `create_time`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`bullet_id`),
+    FOREIGN KEY (`video_id`) REFERENCES `video` (`video_id`) ON DELETE CASCADE,
+    FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci COMMENT ='弹幕表';

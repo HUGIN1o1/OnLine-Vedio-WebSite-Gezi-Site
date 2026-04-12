@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gezicoding.geligeli.mapper.BulletMapper">
+
+    <resultMap id="BaseResultMap" type="com.gezicoding.geligeli.model.entity.Bullet">
+        <id column="bullet_id" property="bulletId" jdbcType="BIGINT"/>
+        <result column="video_id" property="videoId" jdbcType="BIGINT"/>
+        <result column="user_id" property="userId" jdbcType="BIGINT"/>
+        <result column="content" property="content" jdbcType="VARCHAR"/>
+        <result column="color" property="color" jdbcType="VARCHAR"/>
+        <result column="playback_time" property="playbackTime" jdbcType="DOUBLE"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        bullet_id, video_id, user_id, content, color, playback_time, create_time
+    </sql>
+
+</mapper>

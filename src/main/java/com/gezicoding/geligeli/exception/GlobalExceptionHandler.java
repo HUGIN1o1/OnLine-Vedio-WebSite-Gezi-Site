@@ -1,12 +1,18 @@
 package com.gezicoding.geligeli.exception;
 
 import com.gezicoding.geligeli.common.BaseResponse;
+import com.gezicoding.geligeli.common.ErrorCode;
 import com.gezicoding.geligeli.common.ResultUtils;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.commons.mail.EmailException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -30,5 +36,23 @@ public class GlobalExceptionHandler {
         // log.error("业务异常", e.getMessage());
         return ResultUtils.error(e.getCode(), e.getMessage());
     }
+
+    @ExceptionHandler(RuntimeException.class)
+    public BaseResponse<?> runtimeExceptionHandler(RuntimeException e) {
+        return ResultUtils.error(ErrorCode.SYSTEM_ERROR, "系统错误");
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public BaseResponse<?> handleValidationException(MethodArgumentNotValidException ex) {
+        Map<String, String> errors = new HashMap<>();
+        ex.getBindingResult().getAllErrors().forEach(error -> {
+            String fieldName = ((FieldError) error).getField();
+            String message = error.getDefaultMessage();
+            errors.put(fieldName, message);
+        });
+        String message = errors.toString();
+        return ResultUtils.error(ErrorCode.INVALID_PARAMETER_ERROR, message);
+    }
+
 
 }

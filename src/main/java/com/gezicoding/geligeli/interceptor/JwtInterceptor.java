@@ -10,7 +10,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-import com.gezicoding.geligeli.utils.DeviceUtil;
 import com.gezicoding.geligeli.utils.JWTUtils;
 
 import io.jsonwebtoken.Claims;
@@ -29,9 +28,8 @@ public class JwtInterceptor implements HandlerInterceptor {
             Claims claims = JWTUtils.parse(token);
             if (claims != null) {
                 String userId = claims.getSubject();
-                String requestDevice = DeviceUtil.getHttpRequestDevice(request);
-                String redisKey = redisTemplate.opsForValue().get(requestDevice + ":" + userId);
-                boolean isLogin = redisKey != null && !redisKey.isEmpty();
+                String redisToken = redisTemplate.opsForValue().get(userId);
+                boolean isLogin = redisToken != null && !redisToken.isEmpty();
 
                 if (isLogin) {
                     return true;

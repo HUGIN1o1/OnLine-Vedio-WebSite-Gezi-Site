@@ -37,6 +37,19 @@ mybatis-plus:
 server:
   port: 8080
 
+
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
+  producer:
+    group: ${ROCKETMQ_PRODUCER_GROUP:geligeli-producer}
+  consumer:
+    group: ${ROCKETMQ_CONSUMER_GROUP:geligeli-consumer}
+
+
+netty:
+  port: 9011
+  name: nettyService
+
 minio:
   url: ${MINIO_URL:http://127.0.0.1:9000}
   access-key: ${MINIO_ACCESS_KEY:}

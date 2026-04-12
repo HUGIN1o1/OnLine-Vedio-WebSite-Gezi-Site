@@ -17,7 +17,6 @@ import com.gezicoding.geligeli.model.entity.UserStats;
 import com.gezicoding.geligeli.model.vo.user.LoginResponse;
 import com.gezicoding.geligeli.service.UserService;
 import com.gezicoding.geligeli.service.UserStatsService;
-import com.gezicoding.geligeli.utils.DeviceUtil;
 import com.gezicoding.geligeli.utils.EmailUtils;
 import com.gezicoding.geligeli.utils.JWTUtils;
 import com.gezicoding.geligeli.utils.RandomCodeUtil;
@@ -72,10 +71,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
         redisTemplate.delete(RegisterCodeConstants.REDIS_REGISTER_CODE_PREFIX + account);
 
-        String device = DeviceUtil.getHttpRequestDevice(httpServletRequest);
-
         String token = JWTUtils.generateToken(user.getUserId().toString());
-        redisTemplate.opsForValue().set(device + ":" + user.getUserId().toString(), token, JwtConstants.JWT_TIME_OUT, TimeUnit.DAYS);
+        redisTemplate.opsForValue().set(user.getUserId().toString(), token, JwtConstants.JWT_TIME_OUT, TimeUnit.DAYS);
 
         loginResponse.setToken(token);
         return loginResponse;        
@@ -106,11 +103,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         UserStats userStats = userStatsService.getById(user.getUserId());
         BeanUtil.copyProperties(userStats, loginResponse);
 
-        String device = DeviceUtil.getHttpRequestDevice(httpServletRequest);
-
         // generate and store jwt token
         String token = JWTUtils.generateToken(user.getUserId().toString());
-        redisTemplate.opsForValue().set(device + ":" + user.getUserId().toString(), token, JwtConstants.JWT_TIME_OUT, TimeUnit.DAYS);
+        redisTemplate.opsForValue().set(user.getUserId().toString(), token, JwtConstants.JWT_TIME_OUT, TimeUnit.DAYS);
 
         loginResponse.setToken(token);
         return loginResponse;
@@ -249,11 +244,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             // 清理验证码
             redisTemplate.delete(RegisterCodeConstants.REDIS_REGISTER_CODE_PREFIX + account);
 
-            // 按照设备来生成 token保存token
-            String device = DeviceUtil.getHttpRequestDevice(httpServletRequest);
-            // 生成 Token
             String token = JWTUtils.generateToken(user.getUserId().toString());
-            redisTemplate.opsForValue().set(device + ":" + user.getUserId().toString(), token, JwtConstants.JWT_TIME_OUT, TimeUnit.DAYS);
+            redisTemplate.opsForValue().set(user.getUserId().toString(), token, JwtConstants.JWT_TIME_OUT, TimeUnit.DAYS);
 
             // 返回用户信息和 Token
             LoginResponse response = this.baseMapper.getUserInfo(user.getUserId()); 
