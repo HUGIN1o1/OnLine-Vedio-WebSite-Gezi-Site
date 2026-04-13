@@ -1,5 +1,6 @@
 package com.gezicoding.geligeli.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.gezicoding.geligeli.common.ErrorCode;
 import com.gezicoding.geligeli.exception.BusinessException;
@@ -9,10 +10,15 @@ import com.gezicoding.geligeli.model.dto.video.SendBulletRequest;
 import com.gezicoding.geligeli.model.entity.Bullet;
 import com.gezicoding.geligeli.model.entity.User;
 import com.gezicoding.geligeli.model.entity.Video;
+import com.gezicoding.geligeli.model.vo.video.OnlineBulletResponse;
 import com.gezicoding.geligeli.service.BulletService;
 import com.gezicoding.geligeli.service.UserService;
 import com.gezicoding.geligeli.service.VideoStatsService;
 import com.gezicoding.geligeli.service.VideoService;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,12 +29,17 @@ public class BulletServiceImpl extends ServiceImpl<BulletMapper, Bullet> impleme
 
     @Autowired
     private UserService userService;
+    
     @Autowired
     private VideoService videoService;
 
     @Autowired
     private VideoStatsService videoStatsService;
 
+    /**
+     * 保存弹幕到MySQL
+     * @param sendBulletRequest 发送弹幕请求
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void saveBulletToMySQL(SendBulletRequest sendBulletRequest) {
@@ -53,6 +64,11 @@ public class BulletServiceImpl extends ServiceImpl<BulletMapper, Bullet> impleme
         
     }
 
+    /**
+     * 删除弹幕
+     * @param deleteBulletRequest 删除弹幕请求
+     * @return 是否删除成功
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean deleteBullet(DeleteBulletRequest deleteBulletRequest) {
@@ -90,5 +106,31 @@ public class BulletServiceImpl extends ServiceImpl<BulletMapper, Bullet> impleme
         }
 
         return true;
+    }
+
+    /**
+     * 获取视频弹幕列表
+     * @param videoId 视频ID
+     * @return 视频弹幕列表
+     */
+    @Override
+    public List<OnlineBulletResponse> getBulletList(Long videoId) {
+        List<OnlineBulletResponse> onlineBulletResponses = new ArrayList<>();
+        QueryWrapper<Bullet> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("video_id", videoId);
+
+        List<Bullet> bulletList = this.list(queryWrapper);
+
+        for (Bullet bullet : bulletList) {
+            OnlineBulletResponse onlineBulletResponse = new OnlineBulletResponse();
+            onlineBulletResponse.setText(bullet.getContent());
+            onlineBulletResponse.setPlaybackTime(bullet.getPlaybackTime());
+            onlineBulletResponse.setBulletId(bullet.getBulletId().toString());
+            onlineBulletResponse.setUserId(bullet.getUserId().toString());
+            onlineBulletResponses.add(onlineBulletResponse);
+        }
+        // 对弹幕按时间排序
+        onlineBulletResponses.sort(Comparator.comparingDouble(OnlineBulletResponse::getPlaybackTime));
+        return onlineBulletResponses;
     }
 }

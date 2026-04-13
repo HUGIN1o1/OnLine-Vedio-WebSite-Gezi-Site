@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -12,8 +13,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.gezicoding.geligeli.common.BaseResponse;
 import com.gezicoding.geligeli.common.ResultUtils;
+import com.gezicoding.geligeli.model.dto.video.VideoActionRequest;
+import com.gezicoding.geligeli.model.vo.video.CategoryListResponse;
 import com.gezicoding.geligeli.model.vo.video.VideoListResponse;
+import com.gezicoding.geligeli.model.vo.video.VideoResponse;
 import com.gezicoding.geligeli.model.vo.video.VideoSubmitRequest;
+import com.gezicoding.geligeli.service.CategoryService;
 import com.gezicoding.geligeli.service.VideoService;
 
 @RestController
@@ -23,6 +28,9 @@ public class VideoController {
 
     @Autowired
     private VideoService videoService;  
+
+    @Autowired
+    private CategoryService categoryService;
 
     @PostMapping("/submit")
     public BaseResponse<Boolean> submit(
@@ -53,7 +61,28 @@ public class VideoController {
 
     @GetMapping("/video/list")
     public BaseResponse<List<VideoListResponse>> videoList(@RequestParam Integer current, @RequestParam Integer pageSize) {
-        return null;
+        return ResultUtils.success(videoService.getVideoList(current, pageSize));
     }
+
+    @GetMapping("/video/submit/list")
+    public BaseResponse<List<VideoListResponse>> submitVideoList(@RequestParam Long userId) {
+        return ResultUtils.success(videoService.getSubmitVideoList(userId));
+    }
+
+    @GetMapping("/category")
+    public BaseResponse<List<CategoryListResponse>> category() {
+        return ResultUtils.success(categoryService.categoryList());
+    }
+
+    @GetMapping("/category/list")
+    public BaseResponse<List<VideoListResponse>> categoryList(@RequestParam Integer categoryId) {
+        return ResultUtils.success(videoService.getCategoryVideoList(categoryId));
+    }
+
+    @PostMapping("/video/detail")
+    public BaseResponse<VideoResponse> videoDetail(@RequestBody VideoActionRequest videoActionRequest) {
+        return ResultUtils.success(videoService.videoDetail(videoActionRequest));
+    }
+
 
 }

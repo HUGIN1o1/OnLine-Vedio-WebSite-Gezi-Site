@@ -38,23 +38,78 @@
         <result column="nickname" property="nickName" jdbcType="VARCHAR"/>
     </resultMap>
 
-    <select id="getVideoList" resultMap="VideoListResultMap">
-        SELECT v.video_id,
-               vs.view_count,
-               vs.bullet_count,
-               v.user_id,
-               v.file_url,
-               v.cover_url,
-               v.duration,
-               v.title,
-               v.create_time,
-               u.nickname
-        FROM video v
-                 LEFT JOIN video_stats vs ON v.video_id = vs.video_id
-                 LEFT JOIN `user` u ON v.user_id = u.user_id
-        WHERE v.is_delete = 0
-        ORDER BY v.create_time DESC
-        LIMIT #{current}, #{pageSize}
-    </select>
+<select id="selectVideoWithStats" resultType="com.gezicoding.geligeli.model.vo.video.VideoListResponse">
+    SELECT v.video_id, vs.view_count, vs.bullet_count, v.user_id,
+    v.file_url, v.cover_url, v.duration,
+    v.title, v.create_time, u.nickname
+    FROM video v
+    LEFT JOIN video_stats vs ON v.video_id = vs.video_id
+    LEFT JOIN `user` u ON v.user_id = u.user_id
+    WHERE v.is_delete = 0
+    ORDER BY v.create_time DESC
+    LIMIT #{current}, #{pageSize}
+</select>
+
+<select id="recommendVideoList" resultType="com.gezicoding.geligeli.model.vo.video.VideoListResponse">
+    SELECT v.video_id, vs.view_count, vs.bullet_count, v.user_id,
+           v.file_url, v.cover_url, v.duration,
+           v.title, v.create_time, u.nickname
+    FROM video v
+             LEFT JOIN video_stats vs ON v.video_id = vs.video_id
+             LEFT JOIN `user` u ON v.user_id = u.user_id
+    WHERE v.is_delete = 0 and v.category_id = #{categoryId} and v.video_id != #{videoId}
+</select>
+
+
+<select id="getSubmitVideoList" resultType="com.gezicoding.geligeli.model.vo.video.VideoListResponse">
+    SELECT v.video_id, vs.view_count, vs.bullet_count, v.user_id,
+           v.file_url, v.cover_url, v.duration,
+           v.title, v.create_time, u.nickname
+    FROM video v
+             LEFT JOIN video_stats vs ON v.video_id = vs.video_id
+             LEFT JOIN `user` u ON v.user_id = u.user_id
+    WHERE v.is_delete = 0 and v.user_id = #{userId}
+    ORDER BY v.create_time DESC
+</select>
+
+
+<select id="getCategoryVideoList" resultType="com.gezicoding.geligeli.model.vo.video.VideoListResponse">
+    SELECT v.video_id, vs.view_count, vs.bullet_count, v.user_id,
+           v.file_url, v.cover_url, v.duration,
+           v.title, v.create_time, u.nickname
+    FROM video v
+             LEFT JOIN video_stats vs ON v.video_id = vs.video_id
+             LEFT JOIN `user` u ON v.user_id = u.user_id
+    WHERE v.is_delete = 0 and v.category_id = #{categoryId}
+</select>
+
+
+<select id="getVideoDetails" resultType="com.gezicoding.geligeli.model.vo.video.VideoDetailsResponse">
+    SELECT
+        v.video_id,
+        v.file_url,
+        v.user_id,
+        v.title,
+        v.type,
+        v.duration,
+        v.tags,
+        v.description,
+        v.create_time,
+        vs.view_count,
+        vs.bullet_count,
+        vs.like_count,
+        vs.coin_count,
+        vs.favorite_count,
+        vs.comment_count,
+        u.nickname,
+        u.avatar
+    FROM video v
+             LEFT JOIN video_stats vs ON v.video_id = vs.video_id
+             LEFT JOIN `user` u ON v.user_id = u.user_id
+    WHERE v.video_id = #{videoId}
+      AND v.is_delete = 0
+      AND u.is_delete = 0
+      AND v.status = 2;
+</select>
 
 </mapper>
