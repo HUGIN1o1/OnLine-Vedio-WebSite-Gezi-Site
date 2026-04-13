@@ -9,48 +9,39 @@ import java.io.Serializable;
 import java.util.Date;
 
 @Data
-@TableName("user_stats")
-public class UserStats implements Serializable {
+@TableName("comment")
+public class Comment implements Serializable {
+
     /**
-     * id
+     * 评论 ID
      */
     @TableId
+    private Long commentId;
+
+    /**
+     * 视频 ID
+     */
+    private Long videoId;
+
+    /**
+     * 评论用户 ID
+     */
     private Long userId;
 
     /**
-     * 粉丝数
+     * 父评论 ID（为空表示一级评论）
      */
-    private Integer followers;
+    private Long parentCommentId;
 
     /**
-     * 关注数
+     * 评论内容
      */
-    private Integer following;
-
-    /**
-     * 视频数
-     */
-    private Integer videoCount;
-
-    /**
-     * 硬币数
-     */
-    private Integer coinCount;
+    private String content;
 
     /**
      * 创建时间
      */
     private Date createTime;
-
-    /**
-     * 更新时间
-     */
-    private Date updateTime;
-
-    /**
-     * 是否删除
-     */
-    private Integer isDelete;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;

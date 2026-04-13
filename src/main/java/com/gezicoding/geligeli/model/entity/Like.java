@@ -9,48 +9,29 @@ import java.io.Serializable;
 import java.util.Date;
 
 @Data
-@TableName("user_stats")
-public class UserStats implements Serializable {
+@TableName("`like`")
+public class Like implements Serializable {
+
     /**
-     * id
+     * 点赞 ID
      */
     @TableId
+    private Long likeId;
+
+    /**
+     * 视频 ID
+     */
+    private Long videoId;
+
+    /**
+     * 用户 ID
+     */
     private Long userId;
-
-    /**
-     * 粉丝数
-     */
-    private Integer followers;
-
-    /**
-     * 关注数
-     */
-    private Integer following;
-
-    /**
-     * 视频数
-     */
-    private Integer videoCount;
-
-    /**
-     * 硬币数
-     */
-    private Integer coinCount;
 
     /**
      * 创建时间
      */
     private Date createTime;
-
-    /**
-     * 更新时间
-     */
-    private Date updateTime;
-
-    /**
-     * 是否删除
-     */
-    private Integer isDelete;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;

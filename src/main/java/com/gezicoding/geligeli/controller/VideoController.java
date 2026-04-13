@@ -2,6 +2,7 @@ package com.gezicoding.geligeli.controller;
 
 import java.util.List;
 
+import org.checkerframework.checker.units.qual.A;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,13 +14,17 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.gezicoding.geligeli.common.BaseResponse;
 import com.gezicoding.geligeli.common.ResultUtils;
+import com.gezicoding.geligeli.model.dto.video.CancelVideoActionRequest;
 import com.gezicoding.geligeli.model.dto.video.VideoActionRequest;
-import com.gezicoding.geligeli.model.vo.video.CategoryListResponse;
 import com.gezicoding.geligeli.model.vo.video.VideoListResponse;
 import com.gezicoding.geligeli.model.vo.video.VideoResponse;
 import com.gezicoding.geligeli.model.vo.video.VideoSubmitRequest;
-import com.gezicoding.geligeli.service.CategoryService;
+import com.gezicoding.geligeli.service.CoinService;
+import com.gezicoding.geligeli.service.FavoriteService;
+import com.gezicoding.geligeli.service.LikeService;
 import com.gezicoding.geligeli.service.VideoService;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/video")       
@@ -30,7 +35,13 @@ public class VideoController {
     private VideoService videoService;  
 
     @Autowired
-    private CategoryService categoryService;
+    private LikeService likeService;
+
+    @Autowired
+    private CoinService coinService;
+
+    @Autowired
+    private FavoriteService favoriteService;
 
     @PostMapping("/submit")
     public BaseResponse<Boolean> submit(
@@ -59,30 +70,42 @@ public class VideoController {
     }
 
 
-    @GetMapping("/video/list")
+    @GetMapping("/list")
     public BaseResponse<List<VideoListResponse>> videoList(@RequestParam Integer current, @RequestParam Integer pageSize) {
         return ResultUtils.success(videoService.getVideoList(current, pageSize));
     }
 
-    @GetMapping("/video/submit/list")   
+    @GetMapping("/submit/list")   
     public BaseResponse<List<VideoListResponse>> submitVideoList(@RequestParam Long userId) {
         return ResultUtils.success(videoService.getSubmitVideoList(userId));
     }
 
-    @GetMapping("/category")
-    public BaseResponse<List<CategoryListResponse>> category() {
-        return ResultUtils.success(categoryService.categoryList());
-    }
 
-    @GetMapping("/category/list")
-    public BaseResponse<List<VideoListResponse>> categoryList(@RequestParam Integer categoryId) {
-        return ResultUtils.success(videoService.getCategoryVideoList(categoryId));
-    }
-
-    @PostMapping("/video/detail")
+    @PostMapping("/detail")
     public BaseResponse<VideoResponse> videoDetail(@RequestBody VideoActionRequest videoActionRequest) {
         return ResultUtils.success(videoService.videoDetail(videoActionRequest));
     }
 
+
+    @PostMapping("/like")
+    public BaseResponse<Long> likeVideo(@Valid @RequestBody VideoActionRequest videoActionRequest) {
+        return ResultUtils.success(likeService.likeVideo(videoActionRequest));
+    }
+
+    @PostMapping("/cancel/like")
+    public BaseResponse<Boolean> cancelLikeVideo(@Valid @RequestBody CancelVideoActionRequest cancelVideoActionRequest) {
+        return ResultUtils.success(likeService.cancelLikeVideo(cancelVideoActionRequest));
+    }
+
+    @PostMapping("/coin")
+    public BaseResponse<Boolean> coinVideo(@Valid @RequestBody VideoActionRequest videoActionRequest) {
+        return ResultUtils.success(coinService.coinVideo(videoActionRequest));
+    }
+
+
+    @PostMapping("/favorite")
+    public BaseResponse<Long> favoriteVideo(@Valid @RequestBody VideoActionRequest videoActionRequest) {
+        return ResultUtils.success(favoriteService.favoriteVideo(videoActionRequest));
+    }
 
 }

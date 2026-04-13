@@ -1,3 +1,4 @@
+USE gezivedio;
 DROP TABLE IF EXISTS `file`;
 CREATE TABLE `file`
 (
@@ -154,3 +155,56 @@ CREATE TABLE `like`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci COMMENT ='点赞表';
+
+
+DROP TABLE IF EXISTS `coin`;
+CREATE TABLE `coin`
+(
+    `coin_id`     BIGINT   NOT NULL COMMENT '投币ID',
+    `video_id`    BIGINT   NOT NULL COMMENT '视频ID',
+    `user_id`     BIGINT   NOT NULL COMMENT '用户ID',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`coin_id`),
+    UNIQUE KEY unique_video_user (video_id, user_id),
+    FOREIGN KEY (`video_id`) REFERENCES `video` (`video_id`) ON DELETE CASCADE,
+    FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci COMMENT ='投币表';
+
+
+DROP TABLE IF EXISTS `favorite`;
+CREATE TABLE `favorite`
+(
+    `favorite_id` BIGINT   NOT NULL COMMENT '收藏ID',
+    `video_id`    BIGINT   NOT NULL COMMENT '视频ID',
+    `user_id`     BIGINT   NOT NULL COMMENT '用户ID',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`favorite_id`),
+    UNIQUE KEY unique_video_user (video_id, user_id),
+    FOREIGN KEY (`video_id`) REFERENCES `video` (`video_id`) ON DELETE CASCADE,
+    FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci COMMENT ='收藏表';
+
+
+  CREATE TABLE `comment`
+(
+    `comment_id`        BIGINT   NOT NULL COMMENT '评论ID',
+    `video_id`          BIGINT   NOT NULL COMMENT '视频ID',
+    `user_id`           BIGINT   NOT NULL COMMENT '评论用户ID',
+    `parent_comment_id` BIGINT NULL COMMENT '父评论ID, 表示是上一级级评论',
+    `content`           TEXT     NOT NULL COMMENT '评论内容',
+    `create_time`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`comment_id`),
+    KEY                 `idx_vid` (`video_id`),
+    KEY                 `idx_uid` (`user_id`),
+    KEY                 `idx_pid` (`parent_comment_id`),
+    FOREIGN KEY (`video_id`) REFERENCES `video` (`video_id`) ON DELETE CASCADE,
+    FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE,
+    FOREIGN KEY (`parent_comment_id`) REFERENCES `comment` (`comment_id`) ON DELETE CASCADE
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci COMMENT ='评论表';
+  

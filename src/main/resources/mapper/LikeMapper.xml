@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gezicoding.geligeli.mapper.LikeMapper">
+
+    <resultMap id="BaseResultMap" type="com.gezicoding.geligeli.model.entity.Like">
+        <id column="like_id" property="likeId" jdbcType="BIGINT"/>
+        <result column="video_id" property="videoId" jdbcType="BIGINT"/>
+        <result column="user_id" property="userId" jdbcType="BIGINT"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        like_id, video_id, user_id, create_time
+    </sql>
+
+</mapper>

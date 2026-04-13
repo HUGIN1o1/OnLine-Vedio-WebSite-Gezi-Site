@@ -23,4 +23,6 @@ public interface VideoService extends IService<Video> {
     VideoResponse videoDetail(VideoActionRequest videoActionRequest);
 
     
+
+    
 }
