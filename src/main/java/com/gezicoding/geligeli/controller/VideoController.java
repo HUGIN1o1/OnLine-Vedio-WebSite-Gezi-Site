@@ -64,7 +64,7 @@ public class VideoController {
         return ResultUtils.success(videoService.getVideoList(current, pageSize));
     }
 
-    @GetMapping("/video/submit/list")
+    @GetMapping("/video/submit/list")   
     public BaseResponse<List<VideoListResponse>> submitVideoList(@RequestParam Long userId) {
         return ResultUtils.success(videoService.getSubmitVideoList(userId));
     }

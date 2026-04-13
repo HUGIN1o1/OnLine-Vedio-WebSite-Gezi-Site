@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.gezicoding.geligeli.common.ErrorCode;
 import com.gezicoding.geligeli.exception.BusinessException;
 import com.gezicoding.geligeli.mapper.BulletMapper;
+import com.gezicoding.geligeli.mapper.VideoMapper;
 import com.gezicoding.geligeli.model.dto.video.DeleteBulletRequest;
 import com.gezicoding.geligeli.model.dto.video.SendBulletRequest;
 import com.gezicoding.geligeli.model.entity.Bullet;
@@ -13,8 +14,6 @@ import com.gezicoding.geligeli.model.entity.Video;
 import com.gezicoding.geligeli.model.vo.video.OnlineBulletResponse;
 import com.gezicoding.geligeli.service.BulletService;
 import com.gezicoding.geligeli.service.UserService;
-import com.gezicoding.geligeli.service.VideoStatsService;
-import com.gezicoding.geligeli.service.VideoService;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,10 +30,7 @@ public class BulletServiceImpl extends ServiceImpl<BulletMapper, Bullet> impleme
     private UserService userService;
     
     @Autowired
-    private VideoService videoService;
-
-    @Autowired
-    private VideoStatsService videoStatsService;
+    private VideoMapper videoMapper;
 
     /**
      * 保存弹幕到MySQL
@@ -77,7 +73,10 @@ public class BulletServiceImpl extends ServiceImpl<BulletMapper, Bullet> impleme
         Long userId = deleteBulletRequest.getUserId();
         Long bulletId = deleteBulletRequest.getBulletId();
 
-        if (!videoService.lambdaQuery().eq(Video::getVideoId, videoId).eq(Video::getUserId, userId).exists()) {
+        QueryWrapper<Video> videoQueryWrapper = new QueryWrapper<>();
+        videoQueryWrapper.eq("video_id", videoId).eq("user_id", userId).eq("is_delete", 0);
+        Long videoCount = videoMapper.selectCount(videoQueryWrapper);
+        if (videoCount == null || videoCount == 0) {
             throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND_ERROR);
         }
 
