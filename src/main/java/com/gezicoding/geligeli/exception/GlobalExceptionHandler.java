@@ -33,13 +33,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public BaseResponse<String> handleBusinessException(BusinessException e) {
-        // log.error("业务异常", e.getMessage());
         return ResultUtils.error(e.getCode(), e.getMessage());
     }
 
     @ExceptionHandler(RuntimeException.class)
     public BaseResponse<?> runtimeExceptionHandler(RuntimeException e) {
-        return ResultUtils.error(ErrorCode.SYSTEM_ERROR, "系统错误");
+        if (e instanceof BusinessException) {
+            throw e;
+        }
+        log.error("未捕获的运行时异常", e);
+        String hint = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+        return ResultUtils.error(ErrorCode.SYSTEM_ERROR, "系统错误: " + hint);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

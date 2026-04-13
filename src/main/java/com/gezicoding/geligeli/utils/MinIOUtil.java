@@ -17,10 +17,13 @@ import org.springframework.web.multipart.MultipartFile;
 import com.gezicoding.geligeli.common.ErrorCode;
 import com.gezicoding.geligeli.exception.BusinessException;
 
-import ch.qos.logback.core.util.ContentTypeUtil;
 import cn.hutool.core.util.StrUtil;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
+
+import java.util.Optional;
 
 import io.minio.BucketExistsArgs;
 import io.minio.ComposeObjectArgs;
@@ -198,30 +201,16 @@ public class MinIOUtil {
      */
     public String updateCover(MultipartFile file) throws Exception{
         ensureBucketExists();
-
         String fileSuffix = file.getOriginalFilename().substring(file.getOriginalFilename().lastIndexOf(".") + 1);
-
         String id = UUID.randomUUID().toString();
-
         String fileName = id + "." + fileSuffix;
-
         InputStream inputStream = file.getInputStream();
-        String contentType = ContentTypeUtil.getSubType(fileName);
-
+        String contentType = ContentType.getType(fileSuffix);
         try {
-            minioClient.putObject(
-                PutObjectArgs.builder()
-                .bucket(bucketName)
-                .object(fileName)
-                .stream(inputStream, file.getSize(), -1)
-                .contentType(contentType)
-                .build()
-            );
+            minioClient.putObject(PutObjectArgs.builder().bucket(bucketName).object(fileName).stream(inputStream, file.getSize(), -1).contentType(contentType).build());
         } catch (Exception e) {
-            log.error("更新封面 {} 失败", fileName);
-            throw new RuntimeException("封面上传失败", e);
+            throw new RuntimeException("文件上传失败", e);
         }
- 
         return getDownloadUrl(fileName);
     }
 

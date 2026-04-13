@@ -1,0 +1,20 @@
+package com.gezicoding.geligeli.model.vo.video;
+
+import java.util.List;
+
+import lombok.Data;
+
+@Data
+public class VideoResponse {
+
+    private VideoDetailsResponse videoDetailsResponse;
+
+    private List<OnlineBulletResponse> onlineBulletList;
+
+    private TripleActionResponse tripleActionResponse;
+
+    private List<VideoListResponse> videoRecommendListResponse;
+
+    //0 未关注 1 已关注 2 互相关注
+    private Integer follow;
+}

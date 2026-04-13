@@ -24,4 +24,37 @@
         update_time, is_delete
     </sql>
 
+    <!-- 分页列表：LIMIT 第一参数为偏移量(offset)，第二为条数；若业务传的是页码需在外层换算 (pageNo-1)*pageSize -->
+    <resultMap id="VideoListResultMap" type="com.gezicoding.geligeli.model.vo.video.VideoListResponse">
+        <id column="video_id" property="videoId" jdbcType="BIGINT"/>
+        <result column="view_count" property="viewCount" jdbcType="INTEGER"/>
+        <result column="bullet_count" property="bulletCount" jdbcType="INTEGER"/>
+        <result column="user_id" property="userId" jdbcType="BIGINT"/>
+        <result column="file_url" property="fileUrl" jdbcType="VARCHAR"/>
+        <result column="cover_url" property="coverUrl" jdbcType="VARCHAR"/>
+        <result column="duration" property="duration" jdbcType="DOUBLE"/>
+        <result column="title" property="title" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="nickname" property="nickName" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <select id="getVideoList" resultMap="VideoListResultMap">
+        SELECT v.video_id,
+               vs.view_count,
+               vs.bullet_count,
+               v.user_id,
+               v.file_url,
+               v.cover_url,
+               v.duration,
+               v.title,
+               v.create_time,
+               u.nickname
+        FROM video v
+                 LEFT JOIN video_stats vs ON v.video_id = vs.video_id
+                 LEFT JOIN `user` u ON v.user_id = u.user_id
+        WHERE v.is_delete = 0
+        ORDER BY v.create_time DESC
+        LIMIT #{current}, #{pageSize}
+    </select>
+
 </mapper>

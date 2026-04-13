@@ -152,6 +152,8 @@
                     <source>${java.version}</source>
                     <target>${java.version}</target>
                     <encoding>UTF-8</encoding>
+                    <!-- 保留方法参数名，供 Spring @RequestParam 等按名绑定 -->
+                    <parameters>true</parameters>
                 </configuration>
             </plugin>
             <plugin>
