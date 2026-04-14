@@ -5,7 +5,9 @@ import com.gezicoding.geligeli.mapper.FavoriteMapper;
 import com.gezicoding.geligeli.model.entity.Favorite;
 import com.gezicoding.geligeli.service.FavoriteService;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;    
+import org.springframework.transaction.annotation.Transactional;
+
+import com.gezicoding.geligeli.model.dto.video.CancelVideoActionRequest;
 import com.gezicoding.geligeli.model.dto.video.VideoActionRequest;
 import com.gezicoding.geligeli.model.entity.Video;
 import com.gezicoding.geligeli.model.entity.VideoStats;
@@ -19,6 +21,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import com.gezicoding.geligeli.service.VideoService;
 import com.gezicoding.geligeli.service.UserService;
 import com.gezicoding.geligeli.service.VideoStatsService;
+import com.gezicoding.geligeli.utils.CounterUtil;
+
+import java.util.concurrent.TimeUnit;
 
 
 @Service
@@ -34,11 +39,14 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, Favorite> i
     @Autowired
     private VideoStatsService videoStatsService;
 
+    @Autowired
+    private CounterUtil counterUtil;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long favoriteVideo(VideoActionRequest videoActionRequest) {
         // 检测收藏频率是否过快
-        // crawlerFavoriteDetect(videoActionRequest);
+        crawlerFavoriteDetect(videoActionRequest);
 
         // 校验判断视频是否存在
         if (!videoService.lambdaQuery().eq(Video::getVideoId, videoActionRequest.getVideoId()).exists()) {
@@ -69,7 +77,7 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, Favorite> i
             throw new BusinessException(ErrorCode.SYSTEM_ERROR);
         }
 
-        // 视频点赞数+1
+        // 视频收藏数+1
         boolean updated = videoStatsService.lambdaUpdate()
                 .setSql("favorite_count = favorite_count + 1")
                 .eq(VideoStats::getVideoId, videoActionRequest.getVideoId())
@@ -79,5 +87,49 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, Favorite> i
         }
 
         return favoriteVideo.getFavoriteId();
+    }
+
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Boolean cancelFavoriteVideo(CancelVideoActionRequest cancelVideoActionRequest) {
+
+        // 查询是否存在
+        if (!this.lambdaQuery().eq(Favorite::getFavoriteId, cancelVideoActionRequest.getId()).exists()) {
+            throw new BusinessException(ErrorCode.VIDEO_FAVORITE_NOT_EXISTS);
+        }
+
+        // 删除收藏记录
+        boolean remove = this.removeById(cancelVideoActionRequest.getId());
+        if (!remove) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR);
+        }
+
+        // 视频点赞数 -1
+        boolean updated = videoStatsService.lambdaUpdate()
+                .setSql("favorite_count = favorite_count - 1")
+                .eq(VideoStats::getVideoId, cancelVideoActionRequest.getVideoId())
+                .update();
+        if (!updated) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新视频统计失败");
+        }
+
+        return true;
+    }
+
+        
+        
+    private void crawlerFavoriteDetect(VideoActionRequest videoActionRequest) {
+        // 调用多少次时告警
+        final int WARN_COUNT = 2;
+        // 拼接访问 key
+        String key = String.format("favorite:%s:%s", videoActionRequest.getUserId(), videoActionRequest.getVideoId());
+        // 统计一分钟内访问次数，180 秒过期
+        long count = counterUtil.incrAndGetCounter(key, 1, TimeUnit.MINUTES, 80);
+        // 是否告警
+        if (count > WARN_COUNT) {
+            throw new BusinessException(ErrorCode.ACCESS_TOO_FREQUENTLY);
+        }
+   
     }
 }

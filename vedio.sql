@@ -47,7 +47,7 @@ CREATE TABLE `video_stats`
     `bullet_count`     int(11) NOT NULL DEFAULT '0' COMMENT '弹幕数',
     `like_count`       int(11) NOT NULL DEFAULT '0' COMMENT '点赞数',
     `coin_count`       int(11) NOT NULL DEFAULT '0' COMMENT '投币数',
-    `collection_count` int(11) NOT NULL DEFAULT '0' COMMENT '收藏数',
+    `favorite_count`   int(11) NOT NULL DEFAULT '0' COMMENT '收藏数',
     `comment_count`    int(11) NOT NULL DEFAULT '0' COMMENT '评论量',
     `create_time`      DATETIME         DEFAULT CURRENT_TIMESTAMP NOT NULL,
     `update_time`      DATETIME         DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -58,7 +58,8 @@ CREATE TABLE `video_stats`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci COMMENT ='视频数据统计表';
-
+ALTER TABLE `video_stats`
+CHANGE COLUMN `collection_count` `favorite_count` INT(11) NOT NULL DEFAULT '0' COMMENT '收藏数';
 
   INSERT INTO `file` (
     `file_id`, 
@@ -208,3 +209,18 @@ CREATE TABLE `favorite`
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci COMMENT ='评论表';
   
+  
+DROP TABLE IF EXISTS `follow`;
+CREATE TABLE `follow`
+(
+    `follow_id`   BIGINT   NOT NULL COMMENT '关注ID',
+    `user_id`     BIGINT   NOT NULL COMMENT '用户ID',
+    `creator_id`  BIGINT   NOT NULL COMMENT '被关注用户ID',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`follow_id`),
+    UNIQUE KEY unique_video_user (user_id, creator_id),
+    FOREIGN KEY (`creator_id`) REFERENCES `user` (`user_id`),
+    FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci COMMENT ='关注表';

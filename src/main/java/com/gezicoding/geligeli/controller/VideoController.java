@@ -108,4 +108,10 @@ public class VideoController {
         return ResultUtils.success(favoriteService.favoriteVideo(videoActionRequest));
     }
 
+    @PostMapping("/cancel/favorite")
+    public BaseResponse<Boolean> cancelFavoriteVideo(@Valid @RequestBody CancelVideoActionRequest cancelVideoActionRequest) {
+        return ResultUtils.success(favoriteService.cancelFavoriteVideo(cancelVideoActionRequest));
+    }
+
+    
 }

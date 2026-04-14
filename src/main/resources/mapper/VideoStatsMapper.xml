@@ -8,7 +8,7 @@
         <result column="bullet_count" property="bulletCount" jdbcType="INTEGER"/>
         <result column="like_count" property="likeCount" jdbcType="INTEGER"/>
         <result column="coin_count" property="coinCount" jdbcType="INTEGER"/>
-        <result column="collection_count" property="collectionCount" jdbcType="INTEGER"/>
+        <result column="favorite_count" property="favoriteCount" jdbcType="INTEGER"/>
         <result column="comment_count" property="commentCount" jdbcType="INTEGER"/>
         <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
         <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
@@ -16,7 +16,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        video_id, view_count, bullet_count, like_count, coin_count, collection_count, comment_count, create_time,
+        video_id, view_count, bullet_count, like_count, coin_count, favorite_count, comment_count, create_time,
         update_time, is_delete
     </sql>
 

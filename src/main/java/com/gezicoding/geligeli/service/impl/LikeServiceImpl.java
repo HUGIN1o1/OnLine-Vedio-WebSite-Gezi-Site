@@ -16,6 +16,8 @@ import com.gezicoding.geligeli.service.VideoStatsService;
 import cn.hutool.core.lang.Snowflake;
 import cn.hutool.core.util.IdUtil;
 
+import java.util.concurrent.TimeUnit;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import com.gezicoding.geligeli.common.ErrorCode;
 import com.gezicoding.geligeli.constants.SnowFlakeConstants;
 import com.gezicoding.geligeli.exception.BusinessException;
+import com.gezicoding.geligeli.utils.CounterUtil;
 
 @Service
 public class LikeServiceImpl extends ServiceImpl<LikeMapper, Like> implements LikeService {
@@ -38,11 +41,17 @@ public class LikeServiceImpl extends ServiceImpl<LikeMapper, Like> implements Li
     @Autowired
     private VideoStatsService videoStatsService;
 
+    @Autowired
+    private CounterUtil counterUtil;
+
     @Override
     @Transactional(rollbackFor = Exception.class)   
     public Long likeVideo(VideoActionRequest videoActionRequest) {
+        // 点赞检测
+        crawlerLikeDetect(videoActionRequest);
+        
         // 判断视频是否存在，如果不存在抛出异常
-        if (videoService.lambdaQuery().eq(Video::getVideoId, videoActionRequest.getVideoId()).exists()) {
+        if (!videoService.lambdaQuery().eq(Video::getVideoId, videoActionRequest.getVideoId()).exists()) {
             throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND_ERROR);
         }
 
@@ -100,5 +109,23 @@ public class LikeServiceImpl extends ServiceImpl<LikeMapper, Like> implements Li
         }
 
         return true;
+    }
+
+    /**
+     * 点赞检测， 控制只能点一次
+     * @param videoActionRequest
+     */
+    private void crawlerLikeDetect(VideoActionRequest videoActionRequest) {
+        // 调用多少次时告警
+        final int WARN_COUNT = 2;
+        // 拼接访问 key
+        String key = String.format("like:%s:%s", videoActionRequest.getUserId(), videoActionRequest.getVideoId());
+        // 统计一分钟内访问次数，80 秒过期
+        long count = counterUtil.incrAndGetCounter(key, 1, TimeUnit.MINUTES, 80);
+        // 是否告警
+        if (count > WARN_COUNT) {
+            throw new BusinessException(ErrorCode.ACCESS_TOO_FREQUENTLY);
+        }
+   
     }
 }

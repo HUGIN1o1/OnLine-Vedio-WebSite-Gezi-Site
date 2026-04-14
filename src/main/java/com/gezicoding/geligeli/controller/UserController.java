@@ -7,12 +7,18 @@ import com.gezicoding.geligeli.constants.SMSConstant;
 import com.gezicoding.geligeli.model.dto.user.LoginCodeRequest;
 import com.gezicoding.geligeli.model.dto.user.LoginPasswordRequest;
 import com.gezicoding.geligeli.model.dto.user.RegisterRequest;
+import com.gezicoding.geligeli.model.dto.user.FollowRequest;
 import com.gezicoding.geligeli.model.entity.User;
 import com.gezicoding.geligeli.model.vo.user.LoginResponse;
+import com.gezicoding.geligeli.model.vo.user.UserListResponse;
+import com.gezicoding.geligeli.service.FollowService;
 import com.gezicoding.geligeli.service.UserService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,6 +35,9 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private FollowService followService;
 
     /**
      * 根据 userId 查询用户（路径与 /list 区分，避免 list 被当成 id）
@@ -89,4 +98,24 @@ public class UserController {
     public BaseResponse<LoginResponse> loginCode(@Valid @RequestBody LoginCodeRequest loginCodeRequest, HttpServletRequest request) {
         return ResultUtils.success(userService.loginCode(loginCodeRequest, request));
     }
+
+
+    @PostMapping("/follow")
+    public BaseResponse<Boolean> follow(@Valid @RequestBody FollowRequest followRequest) {
+        return ResultUtils.success(followService.follow(followRequest));
+    }
+
+
+    @GetMapping("/following/list")
+    public BaseResponse<List<UserListResponse>> followingList(@Valid @NotEmpty(message = "用户id不能为空") @RequestParam Long userId) {
+        return ResultUtils.success(followService.followList(userId));
+    }
+
+
+    @GetMapping("/followers/list")
+    public BaseResponse<List<UserListResponse>> followersList(@Valid @NotEmpty(message = "用户id不能为空") @RequestParam Long userId) {
+        return ResultUtils.success(followService.followerList(userId));
+    }
+
+
 }

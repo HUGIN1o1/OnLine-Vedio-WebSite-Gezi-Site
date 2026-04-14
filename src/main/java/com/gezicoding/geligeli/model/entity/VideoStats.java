@@ -41,7 +41,7 @@ public class VideoStats implements Serializable {
     /**
      * 收藏数
      */
-    private Integer collectionCount;
+    private Integer favoriteCount;
 
     /**
      * 评论量
