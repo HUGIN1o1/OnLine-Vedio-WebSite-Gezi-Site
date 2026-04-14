@@ -2,7 +2,6 @@ package com.gezicoding.geligeli.controller;
 
 import java.util.List;
 
-import org.checkerframework.checker.units.qual.A;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,8 +13,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.gezicoding.geligeli.common.BaseResponse;
 import com.gezicoding.geligeli.common.ResultUtils;
+import com.gezicoding.geligeli.model.dto.comment.CreateCommentRequest;
+import com.gezicoding.geligeli.service.CommentService;
 import com.gezicoding.geligeli.model.dto.video.CancelVideoActionRequest;
 import com.gezicoding.geligeli.model.dto.video.VideoActionRequest;
+import com.gezicoding.geligeli.model.vo.comment.CommentResponse;
+import com.gezicoding.geligeli.model.vo.video.CommentVideoResponse;
+import com.gezicoding.geligeli.model.vo.video.TripleActionResponse;
 import com.gezicoding.geligeli.model.vo.video.VideoListResponse;
 import com.gezicoding.geligeli.model.vo.video.VideoResponse;
 import com.gezicoding.geligeli.model.vo.video.VideoSubmitRequest;
@@ -25,6 +29,8 @@ import com.gezicoding.geligeli.service.LikeService;
 import com.gezicoding.geligeli.service.VideoService;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 
 @RestController
 @RequestMapping("/api/video")       
@@ -42,6 +48,10 @@ public class VideoController {
 
     @Autowired
     private FavoriteService favoriteService;
+
+
+    @Autowired
+    private CommentService commentService;
 
     @PostMapping("/submit")
     public BaseResponse<Boolean> submit(
@@ -112,6 +122,28 @@ public class VideoController {
     public BaseResponse<Boolean> cancelFavoriteVideo(@Valid @RequestBody CancelVideoActionRequest cancelVideoActionRequest) {
         return ResultUtils.success(favoriteService.cancelFavoriteVideo(cancelVideoActionRequest));
     }
+
+    @PostMapping("/create/comment")
+    public BaseResponse<CommentResponse> createCommentVideo(@Valid @RequestBody CreateCommentRequest createCommentRequest) {
+        return ResultUtils.success(commentService.createCommentVideo(createCommentRequest));
+    }
+
+    @PostMapping("/delete/comment")
+    public BaseResponse<Boolean> deleteCommentVideo(@Valid @RequestBody CancelVideoActionRequest cancelVideoActionRequest) {
+        return ResultUtils.success(commentService.deleteCommentVideo(cancelVideoActionRequest));
+    }
+    
+    @GetMapping("/comment/list")
+    public BaseResponse<List<CommentVideoResponse>> getCommentVideoList(@Valid @NotNull(message = "视频ID不能为空") @RequestParam Long videoId) {
+        return ResultUtils.success(commentService.getCommentVideoList(videoId));
+    }
+
+
+    @PostMapping("/triple/action")
+    public BaseResponse<TripleActionResponse> tripleAction(@Valid @RequestBody VideoActionRequest videoActionRequest) {
+        return ResultUtils.success(videoService.tripleAction(videoActionRequest));
+    }
+
 
     
 }

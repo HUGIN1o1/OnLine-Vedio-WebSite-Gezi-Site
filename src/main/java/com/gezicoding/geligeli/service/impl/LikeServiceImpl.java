@@ -2,15 +2,14 @@ package com.gezicoding.geligeli.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.gezicoding.geligeli.mapper.LikeMapper;
+import com.gezicoding.geligeli.mapper.VideoMapper;
 import com.gezicoding.geligeli.model.dto.video.CancelVideoActionRequest;
 import com.gezicoding.geligeli.model.dto.video.VideoActionRequest;
 import com.gezicoding.geligeli.model.entity.Like;
 import com.gezicoding.geligeli.model.entity.User;
-import com.gezicoding.geligeli.model.entity.Video;
 import com.gezicoding.geligeli.model.entity.VideoStats;
 import com.gezicoding.geligeli.service.LikeService;
 import com.gezicoding.geligeli.service.UserService;
-import com.gezicoding.geligeli.service.VideoService;
 import com.gezicoding.geligeli.service.VideoStatsService;
 
 import cn.hutool.core.lang.Snowflake;
@@ -31,7 +30,7 @@ import com.gezicoding.geligeli.utils.CounterUtil;
 public class LikeServiceImpl extends ServiceImpl<LikeMapper, Like> implements LikeService {
 
     @Autowired
-    private VideoService videoService;
+    private VideoMapper videoMapper;
 
 
     @Autowired
@@ -51,7 +50,7 @@ public class LikeServiceImpl extends ServiceImpl<LikeMapper, Like> implements Li
         crawlerLikeDetect(videoActionRequest);
         
         // 判断视频是否存在，如果不存在抛出异常
-        if (!videoService.lambdaQuery().eq(Video::getVideoId, videoActionRequest.getVideoId()).exists()) {
+        if (videoMapper.selectById(videoActionRequest.getVideoId()) == null) {
             throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND_ERROR);
         }
 

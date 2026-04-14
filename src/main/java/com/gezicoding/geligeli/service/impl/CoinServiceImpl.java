@@ -2,16 +2,15 @@ package com.gezicoding.geligeli.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.gezicoding.geligeli.mapper.CoinMapper;
+import com.gezicoding.geligeli.mapper.VideoMapper;
 import com.gezicoding.geligeli.model.entity.Coin;
 import com.gezicoding.geligeli.service.CoinService;
 import com.gezicoding.geligeli.service.VideoStatsService;
-import com.gezicoding.geligeli.service.VideoService;
 import com.gezicoding.geligeli.service.UserService;
 import com.gezicoding.geligeli.service.UserStatsService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.gezicoding.geligeli.model.dto.video.VideoActionRequest;
-import com.gezicoding.geligeli.model.entity.Video;
 import com.gezicoding.geligeli.model.entity.VideoStats;
 import com.gezicoding.geligeli.model.entity.User;
 import com.gezicoding.geligeli.model.entity.UserStats;
@@ -25,7 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 public class CoinServiceImpl extends ServiceImpl<CoinMapper, Coin> implements CoinService {
 
     @Autowired
-    private VideoService videoService;
+    private VideoMapper videoMapper;
     
     @Autowired
     private UserService userService;
@@ -49,9 +48,7 @@ public class CoinServiceImpl extends ServiceImpl<CoinMapper, Coin> implements Co
         }
 
         // 校验判断视频是否存在
-        if (!videoService.lambdaQuery()
-                .eq(Video::getVideoId, videoActionRequest.getVideoId())
-                .exists()) {
+        if (videoMapper.selectById(videoActionRequest.getVideoId()) == null) {
             throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND_ERROR);
         }
 

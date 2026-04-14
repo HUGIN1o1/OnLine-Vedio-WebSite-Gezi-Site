@@ -17,6 +17,7 @@ import com.gezicoding.geligeli.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
 
@@ -116,7 +117,7 @@ public class UserController {
      * @param followRequest
      * @return
      */
-    @PostMapping("/chanel/follow")
+    @PostMapping("/chancel/follow")
     public BaseResponse<Boolean> chanelFollow(@RequestBody FollowRequest followRequest) {
         return ResultUtils.success(followService.chanelFollow(followRequest));
     }
@@ -128,7 +129,7 @@ public class UserController {
      * @return
      */
     @GetMapping("/following/list")
-    public BaseResponse<List<UserListResponse>> followingList(@Valid @NotEmpty(message = "用户id不能为空") @RequestParam Long userId) {
+    public BaseResponse<List<UserListResponse>> followingList(@Valid @NotNull(message = "用户id不能为空") @RequestParam Long userId) {
         return ResultUtils.success(followService.followList(userId));
     }
 
@@ -139,7 +140,7 @@ public class UserController {
      * @return
      */
     @GetMapping("/followers/list")
-    public BaseResponse<List<UserListResponse>> followersList(@Valid @NotEmpty(message = "用户id不能为空") @RequestParam Long userId) {
+    public BaseResponse<List<UserListResponse>> followersList(@Valid @NotNull(message = "用户id不能为空") @RequestParam Long userId) {
         return ResultUtils.success(followService.followerList(userId));
     }
 

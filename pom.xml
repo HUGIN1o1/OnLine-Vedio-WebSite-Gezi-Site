@@ -44,7 +44,7 @@
         </dependency>
 
 
-        <!-- LOMBOK -->
+        <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -72,7 +72,7 @@
             <version>3.5.12</version> 
         </dependency>
 
-        <!-- 邮箱发送 -->
+        <!-- 邮箱发送 Email Sending -->
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-email</artifactId>
@@ -104,7 +104,7 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.12.0</version> <!-- 选择最新稳定版本 -->
+            <version>3.12.0</version>
         </dependency>
 
         <!-- MinIO -->
@@ -133,6 +133,12 @@
             <groupId>org.redisson</groupId>
             <artifactId>redisson</artifactId>
             <version>3.21.0</version>
+        </dependency>
+
+        <!-- elasticsearch -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
         </dependency>
 
 

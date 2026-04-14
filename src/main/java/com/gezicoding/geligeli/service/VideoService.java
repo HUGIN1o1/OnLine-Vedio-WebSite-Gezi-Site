@@ -8,6 +8,7 @@ import com.gezicoding.geligeli.model.dto.video.VideoActionRequest;
 import com.gezicoding.geligeli.model.vo.video.VideoListResponse;
 import com.gezicoding.geligeli.model.vo.video.VideoResponse;
 import com.gezicoding.geligeli.model.vo.video.VideoSubmitRequest;
+import com.gezicoding.geligeli.model.vo.video.TripleActionResponse;
 
 public interface VideoService extends IService<Video> {
 
@@ -22,7 +23,7 @@ public interface VideoService extends IService<Video> {
 
     VideoResponse videoDetail(VideoActionRequest videoActionRequest);
 
-    
+    TripleActionResponse tripleAction(VideoActionRequest videoActionRequest);
 
     
 }

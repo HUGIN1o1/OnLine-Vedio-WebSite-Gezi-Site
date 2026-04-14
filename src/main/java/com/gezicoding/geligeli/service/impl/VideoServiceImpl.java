@@ -1,6 +1,7 @@
 package com.gezicoding.geligeli.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.gezicoding.geligeli.common.ErrorCode;
@@ -9,18 +10,27 @@ import com.gezicoding.geligeli.exception.BusinessException;
 import com.gezicoding.geligeli.mapper.VideoMapper;
 import com.gezicoding.geligeli.model.dto.video.VideoActionRequest;
 import com.gezicoding.geligeli.model.entity.Category;
+import com.gezicoding.geligeli.model.entity.Coin;
 import com.gezicoding.geligeli.model.entity.File;
+import com.gezicoding.geligeli.model.entity.Favorite;
+import com.gezicoding.geligeli.model.entity.Like;
+import com.gezicoding.geligeli.model.entity.User;
 import com.gezicoding.geligeli.model.entity.UserStats;
 import com.gezicoding.geligeli.model.entity.Video;
 import com.gezicoding.geligeli.model.entity.VideoStats;
 import com.gezicoding.geligeli.model.vo.video.OnlineBulletResponse;
+import com.gezicoding.geligeli.model.vo.video.TripleActionResponse;
 import com.gezicoding.geligeli.model.vo.video.VideoDetailsResponse;
 import com.gezicoding.geligeli.model.vo.video.VideoListResponse;
 import com.gezicoding.geligeli.model.vo.video.VideoResponse;
 import com.gezicoding.geligeli.model.vo.video.VideoSubmitRequest;
+import com.gezicoding.geligeli.service.CoinService;
 import com.gezicoding.geligeli.service.FileService;
 import com.gezicoding.geligeli.service.CategoryService;
+import com.gezicoding.geligeli.service.FavoriteService;
 import com.gezicoding.geligeli.service.BulletService;
+import com.gezicoding.geligeli.service.LikeService;
+import com.gezicoding.geligeli.service.UserService;
 import com.gezicoding.geligeli.service.UserStatsService;
 import com.gezicoding.geligeli.service.VideoService;
 import com.gezicoding.geligeli.service.VideoStatsService;
@@ -47,7 +57,16 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements
     private FileService fileService;
 
     @Autowired
+    private LikeService likeService;
+
+    @Autowired
     private CategoryService categoryService;
+
+    @Autowired
+    private FavoriteService favoriteService;
+
+    @Autowired
+    private CoinService coinService;
 
     @Autowired
     private BulletService bulletService;
@@ -60,6 +79,9 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements
 
     @Autowired
     private UserStatsService userStatsService;
+
+    @Autowired
+    private UserService userService;
 
 
     @Override
@@ -224,6 +246,94 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements
 
 
         return videoResponse;
+    }
+
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public TripleActionResponse tripleAction(VideoActionRequest videoActionRequest) {
+
+        Long vid = videoActionRequest.getVideoId();
+        Long uid = videoActionRequest.getUserId();
+
+        boolean videoExists = this.lambdaQuery().eq(Video::getVideoId, vid).exists();
+        if (!videoExists) {
+            throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND_ERROR);
+        }
+        User user = userService.lambdaQuery().eq(User::getUserId, uid).one();
+
+        UserStats userStats = userStatsService.lambdaQuery().eq(UserStats::getUserId, uid).one();
+
+        if (user == null || userStats == null) {
+            throw new BusinessException(ErrorCode.USER_NOT_EXISTS);
+        }
+
+        boolean isLiked = likeService.lambdaQuery().eq(Like::getUserId, uid).eq(Like::getVideoId, vid).exists();
+
+        boolean isFavorited = favoriteService.lambdaQuery().eq(Favorite::getUserId, uid).eq(Favorite::getVideoId, vid).exists();
+
+        boolean isCoin = coinService.lambdaQuery().eq(Coin::getUserId, uid).eq(Coin::getVideoId, vid).exists();
+        // 开始三连
+        TripleActionResponse response = new TripleActionResponse();
+        Snowflake snowflake = IdUtil.getSnowflake(SnowFlakeConstants.MACHINE_ID, SnowFlakeConstants.DATA_CENTER_ID);
+        LambdaUpdateWrapper<VideoStats> statsUpdate = new LambdaUpdateWrapper<VideoStats>().eq(VideoStats::getVideoId, vid);
+
+        if (!isLiked) {
+            Like like = new Like();
+            like.setUserId(uid);
+            like.setVideoId(vid);
+            like.setLikeId(snowflake.nextId());
+            boolean save = likeService.save(like);
+            if (!save) {
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR);
+            }
+            response.setLikeId(like.getLikeId());
+            statsUpdate.setSql("like_count = like_count + 1");
+        }
+
+        if (!isFavorited) {
+            Favorite favorite = new Favorite();
+            favorite.setVideoId(vid);
+            favorite.setUserId(uid);
+            favorite.setFavoriteId(snowflake.nextId());
+            boolean save = favoriteService.save(favorite);
+            if (!save) {
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR);
+            }
+            response.setFavoriteId(favorite.getFavoriteId());
+            statsUpdate.setSql("favorite_count = favorite_count + 1");
+        }
+
+
+        if (!isCoin) {
+            // 投币扣减并增加
+            Coin coin = new Coin();
+            coin.setVideoId(vid);
+            coin.setUserId(uid);
+            coin.setCoinId(snowflake.nextId());
+            boolean save = coinService.save(coin);
+            if (!save) {
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR);
+            }
+            boolean coinDeducted = userStatsService.lambdaUpdate().setSql("coin_count = coin_count - 1").eq(UserStats::getUserId, uid).update();
+            if (!coinDeducted) {
+                throw new BusinessException(ErrorCode.USER_COIN_ERROR, "投币失败，硬币不足");
+            }
+    
+            response.setCoin(true);
+            statsUpdate.setSql("coin_count = coin_count + 1");
+        }
+
+        if (isLiked & isFavorited & isCoin) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "您已经三连过了");
+        }
+
+        boolean statsUpdated = videoStatsService.update(statsUpdate);
+        if (!statsUpdated) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新视频统计信息失败");
+        }
+        
+        return response;
     }
 
 
