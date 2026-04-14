@@ -135,4 +135,34 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
 
         return userListResponses;
     }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Boolean chanelFollow(FollowRequest followRequest) {
+
+        // 查询用户是否存在
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.in("user_id", followRequest.getUserId(), followRequest.getCreatorId());
+        List<User> users = userService.list(queryWrapper);
+        if (users.size() != 2) {
+            throw new BusinessException(ErrorCode.USER_NOT_EXISTS);
+        }
+
+        QueryWrapper<Follow> queryFollowWrapper = new QueryWrapper<>();
+        queryFollowWrapper.eq("user_id", followRequest.getUserId()).eq("creator_id", followRequest.getCreatorId());
+
+        // 更新粉丝统计
+        boolean updatedFollowers = userStatsService.lambdaUpdate().setSql("followers = followers - 1").eq(UserStats::getUserId, followRequest.getCreatorId()).update();
+        if (!updatedFollowers) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新博主粉丝统计失败");
+        }
+
+        // 更新关注统计
+        boolean updatedFollowing = userStatsService.lambdaUpdate().setSql("following = following - 1").eq(UserStats::getUserId, followRequest.getUserId()).update();
+        if (!updatedFollowing) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新用户关注统计失败");
+        }
+
+        return this.remove(queryFollowWrapper);
+    }
 }

@@ -100,18 +100,44 @@ public class UserController {
     }
 
 
+    /**
+     * 关注
+     * @param followRequest
+     * @return
+     */
     @PostMapping("/follow")
     public BaseResponse<Boolean> follow(@Valid @RequestBody FollowRequest followRequest) {
         return ResultUtils.success(followService.follow(followRequest));
     }
 
 
+    /**
+     * 取消关注
+     * @param followRequest
+     * @return
+     */
+    @PostMapping("/chanel/follow")
+    public BaseResponse<Boolean> chanelFollow(@RequestBody FollowRequest followRequest) {
+        return ResultUtils.success(followService.chanelFollow(followRequest));
+    }
+
+
+    /**
+     * 获取关注列表
+     * @param userId
+     * @return
+     */
     @GetMapping("/following/list")
     public BaseResponse<List<UserListResponse>> followingList(@Valid @NotEmpty(message = "用户id不能为空") @RequestParam Long userId) {
         return ResultUtils.success(followService.followList(userId));
     }
 
 
+    /**
+     * 获取粉丝列表
+     * @param userId
+     * @return
+     */
     @GetMapping("/followers/list")
     public BaseResponse<List<UserListResponse>> followersList(@Valid @NotEmpty(message = "用户id不能为空") @RequestParam Long userId) {
         return ResultUtils.success(followService.followerList(userId));

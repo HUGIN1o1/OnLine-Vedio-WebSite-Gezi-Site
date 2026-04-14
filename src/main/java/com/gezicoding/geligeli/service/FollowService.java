@@ -14,4 +14,6 @@ public interface FollowService extends IService<Follow> {
     List<UserListResponse> followList(Long userId);
 
     List<UserListResponse> followerList(Long userId);
+
+    Boolean chanelFollow(FollowRequest followRequest);
 }
