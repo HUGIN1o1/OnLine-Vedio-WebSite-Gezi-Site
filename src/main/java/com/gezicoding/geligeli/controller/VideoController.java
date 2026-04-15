@@ -29,7 +29,6 @@ import com.gezicoding.geligeli.service.LikeService;
 import com.gezicoding.geligeli.service.VideoService;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
 @RestController

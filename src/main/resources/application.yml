@@ -21,6 +21,12 @@ spring:
           max-idle: 20
           max-active: 15
           max-wait: 500ms
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://127.0.0.1:9200}
+    username: ${ELASTICSEARCH_USERNAME:elastic}
+    password: ${ELASTICSEARCH_PASSWORD:}
+    connection-timeout: 5s
+    socket-timeout: 30s
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml

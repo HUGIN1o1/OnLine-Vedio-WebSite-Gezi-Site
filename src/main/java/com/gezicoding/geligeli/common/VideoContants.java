@@ -8,4 +8,6 @@ public class VideoContants {
 
     public static final Integer VIDEO_TYPE_ON_LINE = 3;
 
+    public static final String VIDEO_ES_INDEX = "video";
+
 }

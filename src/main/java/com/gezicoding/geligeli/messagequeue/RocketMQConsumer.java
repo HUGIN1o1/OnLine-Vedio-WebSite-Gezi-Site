@@ -29,7 +29,6 @@ public class RocketMQConsumer implements RocketMQListener<String> {
         log.info("收到消息: {}", request);
 
         try {
-            // 消费者收到消息后，保存到MySQL
             bulletService.saveBulletToMySQL(request);
         } catch (Exception e) {
             log.error("保存到MySQL失败，消息ID: {}", request.getBulletId(), e);
