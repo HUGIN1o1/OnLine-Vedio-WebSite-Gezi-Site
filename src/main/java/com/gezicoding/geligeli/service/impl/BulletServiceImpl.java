@@ -11,9 +11,11 @@ import com.gezicoding.geligeli.model.dto.video.SendBulletRequest;
 import com.gezicoding.geligeli.model.entity.Bullet;
 import com.gezicoding.geligeli.model.entity.User;
 import com.gezicoding.geligeli.model.entity.Video;
+import com.gezicoding.geligeli.model.entity.VideoStats;
 import com.gezicoding.geligeli.model.vo.video.OnlineBulletResponse;
 import com.gezicoding.geligeli.service.BulletService;
 import com.gezicoding.geligeli.service.UserService;
+import com.gezicoding.geligeli.service.VideoStatsService;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,6 +33,10 @@ public class BulletServiceImpl extends ServiceImpl<BulletMapper, Bullet> impleme
     
     @Autowired
     private VideoMapper videoMapper;
+
+
+    @Autowired
+    private VideoStatsService videoStatsService;
 
     /**
      * 保存弹幕到MySQL
@@ -57,7 +63,12 @@ public class BulletServiceImpl extends ServiceImpl<BulletMapper, Bullet> impleme
         if (!saved) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "保存弹幕失败");
         }
-        
+
+        // 更新视频弹幕统计
+        boolean updated = videoStatsService.lambdaUpdate().setSql("bullet_count = bullet_count + 1").eq(VideoStats::getVideoId, videoId).update();
+        if (!updated) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "弹幕统计更新失败");
+        }
     }
 
     /**
@@ -81,9 +92,9 @@ public class BulletServiceImpl extends ServiceImpl<BulletMapper, Bullet> impleme
         }
 
         // 验证弹幕是否存在
-        // if (!this.lambdaQuery().eq(Bullet::getBulletId, bulletId).exists()) {
-        //     throw new BusinessException(ErrorCode.BULLET_NOT_EXISTS);
-        // }
+        if (!this.lambdaQuery().eq(Bullet::getBulletId, bulletId).exists()) {
+            throw new BusinessException(ErrorCode.BULLET_NOT_EXISTS);
+        }
 
 
         // 用户是否存在
@@ -92,10 +103,10 @@ public class BulletServiceImpl extends ServiceImpl<BulletMapper, Bullet> impleme
         }
 
         // 删除视频弹幕统计，但是现在是通过websocket来更新
-        // boolean updated = videoStatsService.lambdaUpdate().setSql("bullet_count = bullet_count - 1").eq(VideoStats::getVideoId, videoId).update();
-        // if (!updated) {
-        //     throw new BusinessException(ErrorCode.SYSTEM_ERROR, "弹幕统计更新失败");
-        // }
+        boolean updated = videoStatsService.lambdaUpdate().setSql("bullet_count = bullet_count - 1").eq(VideoStats::getVideoId, videoId).update();
+        if (!updated) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "弹幕统计更新失败");
+        }
 
         // 删除弹幕
         boolean deleted = this.removeById(bulletId);
