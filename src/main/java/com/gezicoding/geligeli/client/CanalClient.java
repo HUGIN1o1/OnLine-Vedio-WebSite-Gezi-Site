@@ -19,6 +19,7 @@ import com.alibaba.otter.canal.protocol.CanalEntry;
 import com.alibaba.otter.canal.protocol.Message;
 import com.gezicoding.geligeli.dao.VideoEsDao;
 import com.gezicoding.geligeli.constants.RedisConstant;
+import com.gezicoding.geligeli.constants.VideoConstant;
 import com.gezicoding.geligeli.dao.UserEsDao;
 import com.gezicoding.geligeli.model.es.UserEs;
 import com.gezicoding.geligeli.model.es.VideoEs;
@@ -244,7 +245,7 @@ public class CanalClient implements CommandLineRunner {
 
     private void insertBulletToRedis(Map<String, String> map) {
 
-        String key = RedisConstant.VIDEO_KEY + map.get("video_id") + RedisConstant.BULLET_KEY + map.get("bullet_id");
+        String key = RedisConstant.VIDEO_KEY + map.get("video_id") + RedisConstant.BULLET_KEY;
         String uid = map.get("user_id");
         String id = map.get("bullet_id");
         String content = map.get("content");
@@ -327,6 +328,11 @@ public class CanalClient implements CommandLineRunner {
         }
     }
 
+
+    /**
+     * 更新视频统计到ES
+     * @param map
+     */
     private void updateVideoStats(Map<String, String> map) {
         try {
             Long videoId = Long.valueOf(map.get("video_id"));
@@ -350,28 +356,64 @@ public class CanalClient implements CommandLineRunner {
         }
     }
 
-
-    private void updateUserStats(Map<String, String> map) {
+    /**
+     * 更新视频详情到Redis
+     * @param map
+     */
+    private void updateVideoToRedis(Map<String, String> map) {
         try {
-            Long userId = Long.valueOf(map.get("user_id"));
-            Integer followers = Integer.valueOf(map.get("followers"));
-            Integer videoCount = Integer.valueOf(map.get("video_count"));
+            String cacheKey = "videoDetails:" + map.get("video_id");
+            if (stringRedisTemplate.hasKey(cacheKey)) {
+                Map<String, String> videoDetails = stringRedisTemplate.opsForHash().entries(cacheKey).entrySet().stream().collect(Collectors.toMap(e -> e.getKey().toString(), e -> e.getValue().toString(), (a, b) -> b, HashMap::new));
+                String viewCount = map.get("view_count");
+                String bulletCount = map.get("bullet_count");
+                String likeCount = map.get("like_count");
+                String coinCount = map.get("coin_count");
+                String favoriteCount = map.get("favorite_count");
+                String commentCount = map.get("comment_count");
+                videoDetails.put("viewCount", viewCount);
+                videoDetails.put("bulletCount", bulletCount);
+                videoDetails.put("likeCount", likeCount);
+                videoDetails.put("coinCount", coinCount);
+                videoDetails.put("favoriteCount", favoriteCount);
+                videoDetails.put("commentCount", commentCount);
+                stringRedisTemplate.opsForHash().putAll(cacheKey, videoDetails);
+                stringRedisTemplate.expire(cacheKey, VideoConstant.VIDEO_DETAIL_DAYS, TimeUnit.DAYS);
+            }
+    
+            log.info("Redis 更新视频详情成功");
+        } catch (Exception e) {
+            log.error("Redis 更新视频详情失败", e);
+        }
+    }
 
-            Optional<UserEs> optional = userEsDao.findById(userId);
+    private void updateVideoToEs(Map<String, String> map) {
+        try {
+            Long videoId = Long.valueOf(map.get("video_id"));
+            Integer viewCount = Integer.valueOf(map.get("view_count"));
+            Integer bulletCount = Integer.valueOf(map.get("bullet_count"));
+
+            Optional<VideoEs> optional = videoEsDao.findById(videoId);
             if (optional.isEmpty()) {
-                log.warn("未找到 userId={} 的文档，跳过更新", userId);
+                log.warn("未找到 videoId={} 的文档，跳过更新", videoId);
                 return;
             }
-
-            UserEs userEs = optional.get();
-            userEs.setFollowers(followers);
-            userEs.setVideoCount(videoCount);
-
-            UserEs saved = userEsDao.save(userEs);
-            log.info("ES 局部更新用户统计成功: {}", saved);
+    
+            VideoEs videoEs = optional.get();
+            videoEs.setViewCount(viewCount);
+            videoEs.setBulletCount(bulletCount);
+    
+            VideoEs saved = videoEsDao.save(videoEs);
+            log.info("ES 局部更新视频统计成功: {}", saved);
         } catch (Exception e) {
-            log.error("ES 更新用户统计失败", e);
+            log.error("ES 更新视频统计失败", e);
         }
+    }
+
+
+    private void updateUserStats(Map<String, String> map) {
+        updateVideoToEs(map);
+        updateVideoToRedis(map);
     }
 
     private VideoEs populateVideoEs(Map<String, String> map) {
@@ -403,7 +445,7 @@ public class CanalClient implements CommandLineRunner {
     }
 
     private void deleteBulletToRedis(Map<String, String> map) {
-        String key = RedisConstant.VIDEO_KEY + map.get("video_id") + RedisConstant.BULLET_KEY + map.get("bullet_id");
+        String key = RedisConstant.VIDEO_KEY + map.get("video_id") + RedisConstant.BULLET_KEY;
         String vid = map.get("video_id");
         String uid = map.get("user_id");
         String id = map.get("bullet_id");

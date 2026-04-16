@@ -165,4 +165,26 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
 
         return this.remove(queryFollowWrapper);
     }
+
+    /**
+     * 获取关注类型
+     * @param userId
+     * @param creatorId
+     * @return
+     * 0: 未关注
+     * 1: 已关注
+     * 2: 互相关注
+     */
+    @Override
+    public Integer getFollowType(Long userId, Long creatorId) {
+        Integer followType = 0;
+        boolean existsFollowing = this.lambdaQuery().eq(Follow::getUserId, userId).eq(Follow::getCreatorId, creatorId).exists();
+        boolean existsFollower = this.lambdaQuery().eq(Follow::getUserId, creatorId).eq(Follow::getCreatorId, userId).exists();
+        if (existsFollowing && existsFollower) {
+            followType = 2;
+        } else if (existsFollowing && !existsFollower) {
+            followType = 1;
+        }
+        return followType;
+    }
 }

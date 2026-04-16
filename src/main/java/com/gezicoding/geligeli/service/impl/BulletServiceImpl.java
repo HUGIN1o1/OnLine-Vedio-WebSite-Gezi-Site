@@ -18,7 +18,6 @@ import com.gezicoding.geligeli.service.BulletService;
 import com.gezicoding.geligeli.service.UserService;
 import com.gezicoding.geligeli.service.VideoStatsService;
 
-import lombok.val;
 
 import java.util.ArrayList;
 import java.util.Comparator;

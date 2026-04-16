@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.gezicoding.geligeli.common.ErrorCode;
 import com.gezicoding.geligeli.constants.SnowFlakeConstants;
+import com.gezicoding.geligeli.constants.VideoConstant;
 import com.gezicoding.geligeli.exception.BusinessException;
 import com.gezicoding.geligeli.mapper.VideoMapper;
 import com.gezicoding.geligeli.model.dto.video.VideoActionRequest;
@@ -34,21 +35,32 @@ import com.gezicoding.geligeli.service.UserService;
 import com.gezicoding.geligeli.service.UserStatsService;
 import com.gezicoding.geligeli.service.VideoService;
 import com.gezicoding.geligeli.service.VideoStatsService;
+import com.gezicoding.geligeli.utils.BitMapBloomUtil;
 import com.gezicoding.geligeli.utils.MinIOUtil;
-
+import com.gezicoding.geligeli.service.FollowService;
 import cn.hutool.core.lang.Snowflake;
 import cn.hutool.core.util.IdUtil;
 
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 @Service
 public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements VideoService {
 
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+
+    @Autowired
+    private FollowService followService;
 
     @Autowired
     private MinIOUtil minIOUtil;
@@ -83,7 +95,6 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements
     @Autowired
     private UserService userService;
 
-
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean submit(VideoSubmitRequest videoSubmitRequest) throws Exception {
@@ -107,9 +118,9 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements
         String description = videoSubmitRequest.getDescription();
 
         // 校验参数
-        if (fileUrl == null 
-            || fileUrl.trim().isEmpty() 
-            || !fileService.lambdaQuery().eq(File::getFileUrl, videoSubmitRequest.getFileUrl()).exists()) {
+        if (fileUrl == null
+                || fileUrl.trim().isEmpty()
+                || !fileService.lambdaQuery().eq(File::getFileUrl, videoSubmitRequest.getFileUrl()).exists()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         if (userId == null) {
@@ -151,7 +162,6 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements
         if (!saveResult) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR);
         }
-        
 
         VideoStats videoStats = new VideoStats();
 
@@ -161,18 +171,20 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements
         if (!resultVideoStats) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR);
         }
-    
+
         // 更新用户投稿统计
-        boolean updated = userStatsService.lambdaUpdate().setSql("video_count = video_count + 1").eq(UserStats::getUserId, videoSubmitRequest.getUserId()).update();
+        boolean updated = userStatsService.lambdaUpdate().setSql("video_count = video_count + 1")
+                .eq(UserStats::getUserId, videoSubmitRequest.getUserId()).update();
 
         if (!updated) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新用户投稿统计失败");
         }
 
-        // TODO 布隆过滤器添加视频ID
+        // 完成布隆过滤器添加视频ID
+        BitMapBloomUtil.add(video.getVideoId().toString());
+
         return saveResult;
     }
-
 
     @Override
     public List<VideoListResponse> getVideoList(Integer current, Integer pageSize) {
@@ -207,6 +219,10 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements
     @Override
     public VideoResponse videoDetail(VideoActionRequest videoActionRequest) {
 
+        if (!BitMapBloomUtil.contains(videoActionRequest.getVideoId().toString())) {
+            throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND_ERROR);
+        }
+
         if (videoActionRequest.getVideoId() == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -216,38 +232,169 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements
         queryWrapper.eq("video_id", videoActionRequest.getVideoId());
         Video video = this.getOne(queryWrapper);
 
-        boolean updated = videoStatsService.lambdaUpdate().setSql("view_count = view_count + 1").eq(VideoStats::getVideoId, videoActionRequest.getVideoId()).update();
+        boolean updated = videoStatsService.lambdaUpdate().setSql("view_count = view_count + 1")
+                .eq(VideoStats::getVideoId, videoActionRequest.getVideoId()).update();
         if (!updated) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新视频浏览量失败");
         }
-        
+
+        if (stringRedisTemplate.hasKey("videoDetails:" + videoActionRequest.getVideoId().toString())) {
+            stringRedisTemplate.expire("videoDetails:" + videoActionRequest.getVideoId().toString(),
+                    VideoConstant.VIDEO_DETAIL_DAYS, TimeUnit.DAYS);
+            return hotVideoDetail(videoActionRequest, video);
+        }
+
         return publicVideoDetail(videoActionRequest, video);
 
     }
-
 
     public VideoResponse publicVideoDetail(VideoActionRequest videoActionRequest, Video video) {
 
         // 获取视频详情
         VideoDetailsResponse videoDetails = videoMapper.getVideoDetails(videoActionRequest.getVideoId());
 
-        // 获取弹幕列表
-        List<OnlineBulletResponse> onlineBulletResponses = bulletService.getBulletList(videoActionRequest.getVideoId());
+        // 封装响应对象
+        VideoResponse videoResponse = new VideoResponse();
+        videoResponse.setVideoDetailsResponse(videoDetails);
+        videoResponse.setTripleActionResponse(getTripleActionResponse(videoActionRequest));
+        videoResponse.setOnlineBulletList(getVideoBullets(videoActionRequest.getVideoId()));
+        videoResponse.setVideoRecommendListResponse(
+                getRecommendVideos(video.getCategoryId(), videoActionRequest.getVideoId()));
+        videoResponse.setFollow(followService.getFollowType(videoActionRequest.getUserId(), video.getUserId()));
 
-        // 用视频相同的分类推送相关视频
-        List<VideoListResponse> recommendVideoList = videoMapper.recommendVideoList(video.getCategoryId(), video.getVideoId());
+        // 判断热点视频
+        QueryWrapper<VideoStats> videoStatsQueryWrapper = new QueryWrapper<>();
+        videoStatsQueryWrapper.eq("video_id", videoActionRequest.getVideoId());
+        VideoStats videoStats = videoStatsService.getOne(videoStatsQueryWrapper);
+        if (videoStats.getViewCount() >= VideoConstant.HOT_VIDEO_VIEW_COUNT) {
+            Map<String, String> redisVideoDetails = new HashMap<>();
+            redisVideoDetails.put("videoId", String.valueOf(videoDetails.getVideoId()));
+            redisVideoDetails.put("fileUrl", videoDetails.getFileUrl());
+            redisVideoDetails.put("userId", String.valueOf(videoDetails.getUserId()));
+            redisVideoDetails.put("title", videoDetails.getTitle());
+            redisVideoDetails.put("type", String.valueOf(videoDetails.getType()));
+            redisVideoDetails.put("duration", String.valueOf(videoDetails.getDuration()));
+            redisVideoDetails.put("tags", videoDetails.getTags());
+            redisVideoDetails.put("description", videoDetails.getDescription());
+            redisVideoDetails.put("createTime", String.valueOf(videoDetails.getCreateTime().getTime()));
+            redisVideoDetails.put("viewCount", String.valueOf(videoDetails.getViewCount()));
+            redisVideoDetails.put("bulletCount", String.valueOf(videoDetails.getBulletCount()));
+            redisVideoDetails.put("likeCount", String.valueOf(videoDetails.getLikeCount()));
+            redisVideoDetails.put("coinCount", String.valueOf(videoDetails.getCoinCount()));
+            redisVideoDetails.put("favoriteCount", String.valueOf(videoDetails.getFavoriteCount()));
+            redisVideoDetails.put("commentCount", String.valueOf(videoDetails.getCommentCount()));
+            redisVideoDetails.put("nickname", videoDetails.getNickname());
+            redisVideoDetails.put("avatar", videoDetails.getAvatar());
+            stringRedisTemplate.opsForHash().putAll("videoDetails:" + videoActionRequest.getVideoId().toString(),
+                    redisVideoDetails);
+            stringRedisTemplate.expire("videoDetails:" + videoActionRequest.getVideoId().toString(),
+                    VideoConstant.VIDEO_DETAIL_DAYS, TimeUnit.DAYS);
+
+        }
+        return videoResponse;
+    }
+
+    /**
+     * 获取热门视频详情, 视频在redis中
+     * 
+     * @param videoActionRequest
+     * @param video
+     * @return
+     */
+    public VideoResponse hotVideoDetail(VideoActionRequest videoActionRequest, Video video) {
+
+        // 获取视频详情
+        Map<String, String> redisVideoDetails = stringRedisTemplate
+                .opsForHash()
+                .entries("videoDetails:" + videoActionRequest.getVideoId())
+                .entrySet()
+                .stream()
+                .collect(
+                        Collectors.toMap(e -> e.getKey().toString(),
+                                e -> e.getValue().toString(), (a, b) -> b, HashMap::new)
+                );
+
+        VideoDetailsResponse videoDetails = new VideoDetailsResponse();
+        // 基本视频信息
+        videoDetails.setVideoId(Long.parseLong(redisVideoDetails.get("videoId")));
+        videoDetails.setFileUrl(redisVideoDetails.get("fileUrl"));
+        videoDetails.setUserId(Long.parseLong(redisVideoDetails.get("userId")));
+        videoDetails.setTitle(redisVideoDetails.get("title"));
+        videoDetails.setType(Integer.parseInt(redisVideoDetails.get("type")));
+        videoDetails.setDuration(Double.parseDouble(redisVideoDetails.get("duration")));
+        videoDetails.setTags(redisVideoDetails.get("tags"));
+        videoDetails.setDescription(redisVideoDetails.get("description"));
+        long timestamp = Long.parseLong(redisVideoDetails.get("createTime"));
+        videoDetails.setCreateTime(new Date(timestamp));
+        videoDetails.setViewCount(Integer.parseInt(redisVideoDetails.get("viewCount")));
+        videoDetails.setBulletCount(Integer.parseInt(redisVideoDetails.get("bulletCount")));
+        videoDetails.setLikeCount(Integer.parseInt(redisVideoDetails.get("likeCount")));
+        videoDetails.setCoinCount(Integer.parseInt(redisVideoDetails.get("coinCount")));
+        videoDetails.setFavoriteCount(Integer.parseInt(redisVideoDetails.get("favoriteCount")));
+        videoDetails.setCommentCount(Integer.parseInt(redisVideoDetails.get("commentCount")));
+        videoDetails.setNickname(redisVideoDetails.get("nickname"));
+        videoDetails.setAvatar(redisVideoDetails.get("avatar"));
 
         // 封装响应对象
         VideoResponse videoResponse = new VideoResponse();
         videoResponse.setVideoDetailsResponse(videoDetails);
-        videoResponse.setOnlineBulletList(onlineBulletResponses);
-        videoResponse.setVideoRecommendListResponse(recommendVideoList);
-
-
+        videoResponse.setTripleActionResponse(getTripleActionResponse(videoActionRequest));
+        videoResponse.setOnlineBulletList(getVideoBullets(videoActionRequest.getVideoId()));
+        videoResponse.setVideoRecommendListResponse(getRecommendVideos(video.getCategoryId(), video.getVideoId()));
+        videoResponse.setFollow(followService.getFollowType(videoActionRequest.getUserId(), video.getUserId()));
 
         return videoResponse;
     }
 
+    public TripleActionResponse getTripleActionResponse(VideoActionRequest videoActionRequest) {
+        TripleActionResponse tripleActionResponse = new TripleActionResponse();
+        // 是否点赞
+        if (videoActionRequest.getUserId() != null) {
+            // 判断是否点赞
+            Like likeVideo = likeService.lambdaQuery().eq(Like::getVideoId, videoActionRequest.getVideoId())
+                    .eq(Like::getUserId, videoActionRequest.getUserId()).one();
+            if (likeVideo != null) {
+                tripleActionResponse.setLikeId(likeVideo.getLikeId());
+            }
+
+            // 是否收藏
+            Favorite favoriteVideo = favoriteService.lambdaQuery()
+                    .eq(Favorite::getVideoId, videoActionRequest.getVideoId())
+                    .eq(Favorite::getUserId, videoActionRequest.getUserId()).one();
+            if (favoriteVideo != null) {
+                tripleActionResponse.setFavoriteId(favoriteVideo.getFavoriteId());
+            }
+
+            // 是否投币
+            Coin coinVideo = coinService.lambdaQuery().eq(Coin::getVideoId, videoActionRequest.getVideoId())
+                    .eq(Coin::getUserId, videoActionRequest.getUserId()).one();
+            if (coinVideo != null) {
+                tripleActionResponse.setCoin(true);
+            }
+        }
+        return tripleActionResponse;
+    }
+
+    /**
+     * 获取在线时评列表
+     * 
+     * @param videoId
+     * @return
+     */
+    public List<OnlineBulletResponse> getVideoBullets(Long videoId) {
+        return bulletService.getBulletList(videoId);
+    }
+
+    /**
+     * 获取推荐时评列表
+     * 
+     * @param categoryId
+     * @param videoId
+     * @return
+     */
+    public List<VideoListResponse> getRecommendVideos(Integer categoryId, Long videoId) {
+        return videoMapper.recommendVideoList(categoryId, videoId);
+    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -270,13 +417,15 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements
 
         boolean isLiked = likeService.lambdaQuery().eq(Like::getUserId, uid).eq(Like::getVideoId, vid).exists();
 
-        boolean isFavorited = favoriteService.lambdaQuery().eq(Favorite::getUserId, uid).eq(Favorite::getVideoId, vid).exists();
+        boolean isFavorited = favoriteService.lambdaQuery().eq(Favorite::getUserId, uid).eq(Favorite::getVideoId, vid)
+                .exists();
 
         boolean isCoin = coinService.lambdaQuery().eq(Coin::getUserId, uid).eq(Coin::getVideoId, vid).exists();
         // 开始三连
         TripleActionResponse response = new TripleActionResponse();
         Snowflake snowflake = IdUtil.getSnowflake(SnowFlakeConstants.MACHINE_ID, SnowFlakeConstants.DATA_CENTER_ID);
-        LambdaUpdateWrapper<VideoStats> statsUpdate = new LambdaUpdateWrapper<VideoStats>().eq(VideoStats::getVideoId, vid);
+        LambdaUpdateWrapper<VideoStats> statsUpdate = new LambdaUpdateWrapper<VideoStats>().eq(VideoStats::getVideoId,
+                vid);
 
         if (!isLiked) {
             Like like = new Like();
@@ -304,7 +453,6 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements
             statsUpdate.setSql("favorite_count = favorite_count + 1");
         }
 
-
         if (!isCoin) {
             // 投币扣减并增加
             Coin coin = new Coin();
@@ -315,11 +463,12 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements
             if (!save) {
                 throw new BusinessException(ErrorCode.SYSTEM_ERROR);
             }
-            boolean coinDeducted = userStatsService.lambdaUpdate().setSql("coin_count = coin_count - 1").eq(UserStats::getUserId, uid).update();
+            boolean coinDeducted = userStatsService.lambdaUpdate().setSql("coin_count = coin_count - 1")
+                    .eq(UserStats::getUserId, uid).update();
             if (!coinDeducted) {
                 throw new BusinessException(ErrorCode.USER_COIN_ERROR, "投币失败，硬币不足");
             }
-    
+
             response.setCoin(true);
             statsUpdate.setSql("coin_count = coin_count + 1");
         }
@@ -332,9 +481,8 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements
         if (!statsUpdated) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新视频统计信息失败");
         }
-        
+
         return response;
     }
-
 
 }
