@@ -28,6 +28,10 @@ public class RocketMQConsumer implements RocketMQListener<String> {
         SendBulletRequest request = JSONUtil.toBean(message, SendBulletRequest.class);
         log.info("收到消息: {}", request);
 
+        if (bulletService.bulletExists(request.getBulletId())) {
+            return;
+        }
+
         try {
             bulletService.saveBulletToMySQL(request);
         } catch (Exception e) {

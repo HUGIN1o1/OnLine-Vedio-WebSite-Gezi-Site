@@ -188,4 +188,10 @@ public class BulletServiceImpl extends ServiceImpl<BulletMapper, Bullet> impleme
         onlineBulletResponses.sort(Comparator.comparingDouble(OnlineBulletResponse::getPlaybackTime));
         return onlineBulletResponses;
     }
+
+
+    @Override
+    public boolean bulletExists(Long bulletId) {
+        return this.lambdaQuery().eq(Bullet::getBulletId, bulletId).exists();
+    }
 }

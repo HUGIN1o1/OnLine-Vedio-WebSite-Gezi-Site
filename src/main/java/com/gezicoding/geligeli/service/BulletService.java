@@ -16,4 +16,6 @@ public interface BulletService extends IService<Bullet> {
     
     List<OnlineBulletResponse> getBulletList(Long videoId);
 
+    boolean bulletExists(Long bulletId);
+
 }
