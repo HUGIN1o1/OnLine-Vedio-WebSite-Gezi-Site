@@ -77,13 +77,16 @@ public class SearchController {
         Criteria criteria = new Criteria("title").matches(keyword);
         Query searchQuery = new CriteriaQuery(criteria);
 
-        SearchHits<VideoEs> searchHits = elasticsearchTemplate.search(searchQuery, VideoEs.class, IndexCoordinates.of(VideoContants.VIDEO_ES_INDEX));
+        SearchHits<VideoEs> searchHits = elasticsearchTemplate
+        .search(searchQuery, VideoEs.class, 
+            IndexCoordinates.of(
+                VideoContants.VIDEO_ES_INDEX
+            )
+        );
 
         List<SearchVideoListResponse> videoListResponses = searchHits.stream().map(SearchHit::getContent).map(this::convertVideoToResponse).collect(Collectors.toList());
         
         return ResultUtils.success(videoListResponses);
-
-
     }
 
     private SearchVideoListResponse convertVideoToResponse(VideoEs videoEs) {
