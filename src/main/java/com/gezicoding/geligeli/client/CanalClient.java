@@ -5,9 +5,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +18,7 @@ import com.alibaba.otter.canal.client.CanalConnector;
 import com.alibaba.otter.canal.protocol.CanalEntry;
 import com.alibaba.otter.canal.protocol.Message;
 import com.gezicoding.geligeli.dao.VideoEsDao;
+import com.gezicoding.geligeli.constants.RedisConstant;
 import com.gezicoding.geligeli.dao.UserEsDao;
 import com.gezicoding.geligeli.model.es.UserEs;
 import com.gezicoding.geligeli.model.es.VideoEs;
@@ -37,6 +41,9 @@ public class CanalClient implements CommandLineRunner {
     @Autowired
     private VideoEsDao videoEsDao;
 
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+
     private static final int BATCH_SIZE = 500; // 每次拉取的消息条数
 
     private static final int MAX_RETRY_TIMES = 5; // 发生错误后最大重试次数
@@ -49,7 +56,7 @@ public class CanalClient implements CommandLineRunner {
 
     private static final long IDLE_CHECK_INTERVAL = 5000; // 5秒检查一次空闲状态
 
-    private static final Set<String> MONITOR_TABLES = Set.of("user", "video", "video_stats", "user_stats");
+    private static final Set<String> MONITOR_TABLES = Set.of("user", "video", "video_stats", "user_stats", "bullet");
 
 
     @Override
@@ -228,12 +235,31 @@ public class CanalClient implements CommandLineRunner {
     private void handleInsert(List<CanalEntry.Column> columns, String tableName) {
         Map<String, String> map = columns.stream().collect(Collectors.toMap(CanalEntry.Column::getName, CanalEntry.Column::getValue));
         log.info("======> 表名：{}，更新数据：{}", tableName, map);
-        if (tableName.equals("user")) {
-            insertUser(map);
-        } else if (tableName.equals("video")) {
-            insertVideo(map);
+        switch (tableName) {
+            case "user" -> insertUser(map);
+            case "video" -> insertVideo(map);
+            case "bullet" -> insertBulletToRedis(map);
         }
     }
+
+    private void insertBulletToRedis(Map<String, String> map) {
+
+        String key = RedisConstant.VIDEO_KEY + map.get("video_id") + RedisConstant.BULLET_KEY + map.get("bullet_id");
+        String uid = map.get("user_id");
+        String id = map.get("bullet_id");
+        String content = map.get("content");
+        Double timePoint = Double.valueOf(map.get("playback_time"));
+        String value = uid + ":" + id + ":" + content;
+        try {
+            stringRedisTemplate.opsForZSet().add(key, value, timePoint);
+            stringRedisTemplate.expire(key, 72 * 3600 + ThreadLocalRandom.current().nextInt(3600), TimeUnit.SECONDS);
+            log.info("Redis 插入弹幕成功: {}", value);
+        } catch (Exception e) {
+            log.error("Redis 插入失败: ", e);
+        }
+    }
+
+
 
     private void insertUser(Map<String, String> map) {
         try {
@@ -369,11 +395,22 @@ public class CanalClient implements CommandLineRunner {
         for (CanalEntry.Column column : columns) {
             map.put(column.getName(), column.getValue());
         }
-        if (tableName.equals("user")) {
-            deleteUserToEs(map);
-        } else if (tableName.equals("video")) {
-            deleteVideoToEs(map);
+        switch (tableName) {
+            case "bullet" -> deleteBulletToRedis(map);
+            case "user" -> deleteUserToEs(map);
+            case "video" -> deleteVideoToEs(map);
         }
+    }
+
+    private void deleteBulletToRedis(Map<String, String> map) {
+        String key = RedisConstant.VIDEO_KEY + map.get("video_id") + RedisConstant.BULLET_KEY + map.get("bullet_id");
+        String vid = map.get("video_id");
+        String uid = map.get("user_id");
+        String id = map.get("bullet_id");
+        String content = map.get("content");
+        String value = uid + ":" + id + ":" + content;
+        stringRedisTemplate.opsForZSet().remove(key, value);
+        log.info("Redis 删除弹幕成功: {}", map.get("bullet_id"));
     }
 
     private void deleteUserToEs(Map<String, String> map) {
