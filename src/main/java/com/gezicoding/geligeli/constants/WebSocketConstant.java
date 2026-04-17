@@ -7,4 +7,6 @@ public class WebSocketConstant {
     public static final Integer ONLINE_BULLET = 2;
 
     public static final Integer LOGIN_MESSAGE = 3;
+
+    public static final Integer RATE_LIMIT_MESSAGE = 4;
 }

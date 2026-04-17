@@ -24,6 +24,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.csp.sentinel.Entry;
+import com.alibaba.csp.sentinel.EntryType;
+import com.alibaba.csp.sentinel.SphU;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.gezicoding.geligeli.constants.SentinelResourceConstant;
 import com.gezicoding.geligeli.constants.SnowFlakeConstants;
 import com.gezicoding.geligeli.constants.WebSocketConstant;
 import com.gezicoding.geligeli.messagequeue.RocketMQProducter;
@@ -57,11 +62,18 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<TextWebSocketF
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame msg) throws Exception {
         String videoId = ctx.channel().attr(VIDEOID).get();
         if (videoId != null) {
-            boolean login = checkOnline(msg.text());
+            SendBulletRequest request = JSONUtil.toBean(msg.text(), SendBulletRequest.class);
+            boolean login = checkOnline(request);
             System.out.println(login);
             if (login) {
-                System.out.println("消息发送成功：" + msg.text());
-                broadcastMessage(videoId, onlineMessage(msg.text()));
+                // 发送弹幕QPS限制，如果超过限制，则发送限流消息
+                try (Entry entry = SphU.entry(SentinelResourceConstant.WS_BULLET_SEND, EntryType.IN, 1,
+                        String.valueOf(request.getUserId()))) {
+                    System.out.println("消息发送成功：" + msg.text());
+                    broadcastMessage(videoId, onlineMessage(request));
+                } catch (BlockException ex) {
+                    rateLimitMessage(videoId, ctx.channel());
+                }
             } else {
                 needLoginMessage(videoId, ctx.channel());
             }
@@ -84,11 +96,29 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<TextWebSocketF
 
     }
 
-    public String onlineMessage(String text) {
+
+    /**
+     * 发送限流消息
+     * @param videoId
+     * @param channel
+     */
+    private void rateLimitMessage(String videoId, Channel channel) {
+        BulletScreenResponse bulletScreenResponse = new BulletScreenResponse();
+        bulletScreenResponse.setType(WebSocketConstant.RATE_LIMIT_MESSAGE);
+        bulletScreenResponse.setData("发送过快，请稍后再试");
+        String message = JSON.toJSONString(bulletScreenResponse);
+        channel.writeAndFlush(new TextWebSocketFrame(message)).addListener(future -> {
+            if (!future.isSuccess()) {
+                logger.error("限流提示发送失败到房间：{}，原因：{}", videoId, future.cause().getMessage());
+                cleanupInvalidChannels(videoChannelMap.get(videoId));
+            }
+        });
+    }
+
+    public String onlineMessage(SendBulletRequest request) {
         BulletScreenResponse bulletScreenResponse = new BulletScreenResponse();
         bulletScreenResponse.setType(WebSocketConstant.ONLINE_BULLET);
 
-        SendBulletRequest request = JSONUtil.toBean(text, SendBulletRequest.class);
         Snowflake snowflake = IdUtil.getSnowflake(SnowFlakeConstants.MACHINE_ID, SnowFlakeConstants.DATA_CENTER_ID);
         request.setBulletId(snowflake.nextId());
 
@@ -170,8 +200,10 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<TextWebSocketF
      * @param text 发送弹幕请求
      * @return boolean 是否在线
      */
-    private boolean checkOnline(String text) {
-        SendBulletRequest request = JSONUtil.toBean(text, SendBulletRequest.class);
+    private boolean checkOnline(SendBulletRequest request) {
+        if (request == null || request.getUserId() == null) {
+            return false;
+        }
         String userId = request.getUserId().toString();
         System.out.println("userId: " + userId);
         String token = stringRedisTemplate.opsForValue().get(userId);

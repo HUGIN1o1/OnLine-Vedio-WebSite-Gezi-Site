@@ -13,6 +13,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <spring-boot.version>3.5.4</spring-boot.version>
         <hutool.version>5.8.34</hutool.version>
+        <sentinel.version>1.8.9</sentinel.version>
     </properties>
     <dependencies>
 
@@ -152,6 +153,19 @@
             <groupId>com.alibaba.otter</groupId>
             <artifactId>canal.protocol</artifactId>
             <version>1.1.7</version>
+        </dependency>
+
+        <!-- Sentinel -->
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-core</artifactId>
+            <version>${sentinel.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-parameter-flow-control</artifactId>
+            <version>${sentinel.version}</version>
         </dependency>
 
 
